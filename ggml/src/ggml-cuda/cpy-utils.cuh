@@ -153,6 +153,89 @@ static __device__ void quantize_f32_q8_0_block(const float * __restrict__ x, blo
     }
 }
 
+static __device__ void quantize_f32_q2_nu_block(const float * __restrict__ x, block_q2_nu * __restrict__ y) {
+    float amax = 0.0f;
+
+    for (int j = 0; j < QK2_NU; j++) {
+        const float v = x[j];
+        amax = fmaxf(amax, fabsf(v));
+    }
+
+    const float d = amax;
+    const float id = d > 0 ? 1.0f/d : 0.0f;
+
+    y->d = __float2half(d);
+
+    memset(y->qs, 0, QK2_NU*2/8);
+
+    for (int j = 0; j < QK2_NU; ++j) {
+        const float x0 = x[j];
+        const int q = d > 0 ? (x0*id < -0.403f ? 0 : x0*id < 0.0f ? 1 : x0*id < 0.403f ? 2 : 3)
+                            : min(3, max(0, (int) roundf(x0/0.001f) + 1));
+        const int byte_idx = j/4;
+        const int bit_off  = (j%4)*2;
+        y->qs[byte_idx] |= q << bit_off;
+    }
+}
+
+static __device__ void quantize_f32_q3_0_block(const float * __restrict__ x, block_q3_0 * __restrict__ y) {
+    float amax = 0.0f;
+    float vmax = 0.0f;
+
+    for (int j = 0; j < QK3_0; ++j) {
+        const float v = x[j];
+        if (amax < fabsf(v)) {
+            amax = fabsf(v);
+            vmax = v;
+        }
+    }
+
+    const float d  = vmax / -4;
+    const float id = d ? 1.0f/d : 0.0f;
+
+    y->d = d;
+
+    memset(y->qs, 0, QK3_0*3/8);
+
+    for (int j = 0; j < QK3_0; ++j) {
+        const float x0 = x[j]*id;
+        const int xi = min(7, (int8_t)(x0 + 4.5f));
+        const int byte_idx = j*3/8;
+        const int bit_off  = j*3%8;
+        y->qs[byte_idx] |= xi << bit_off;
+        if (bit_off > 5) y->qs[byte_idx+1] |= xi >> (8 - bit_off);
+    }
+}
+
+static __device__ void quantize_f32_q3_0_64_block(const float * __restrict__ x, block_q3_0_64 * __restrict__ y) {
+    float amax = 0.0f;
+    float vmax = 0.0f;
+
+    for (int j = 0; j < QK3_0_64; ++j) {
+        const float v = x[j];
+        if (amax < fabsf(v)) {
+            amax = fabsf(v);
+            vmax = v;
+        }
+    }
+
+    const float d  = vmax / -4;
+    const float id = d ? 1.0f/d : 0.0f;
+
+    y->d = d;
+
+    memset(y->qs, 0, QK3_0_64*3/8);
+
+    for (int j = 0; j < QK3_0_64; ++j) {
+        const float x0 = x[j]*id;
+        const int xi = min(7, (int8_t)(x0 + 4.5f));
+        const int byte_idx = j*3/8;
+        const int bit_off  = j*3%8;
+        y->qs[byte_idx] |= xi << bit_off;
+        if (bit_off > 5) y->qs[byte_idx+1] |= xi >> (8 - bit_off);
+    }
+}
+
 static __device__ void quantize_f32_iq4_nl_block(const float * __restrict__ x, block_iq4_nl * __restrict__ y) {
     float amax = 0.0f;
     float vmax = 0.0f;
@@ -205,6 +288,18 @@ static __device__ void cpy_blck_f32_q5_1(const char * cxi, char * cdsti) {
 
 static __device__ void cpy_blck_f32_q8_0(const char * cxi, char * cdsti) {
     quantize_f32_q8_0_block((const float *)cxi, (block_q8_0 *)cdsti);
+}
+
+static __device__ void cpy_blck_f32_q2_nu(const char * cxi, char * cdsti) {
+    quantize_f32_q2_nu_block((const float *)cxi, (block_q2_nu *)cdsti);
+}
+
+static __device__ void cpy_blck_f32_q3_0(const char * cxi, char * cdsti) {
+    quantize_f32_q3_0_block((const float *)cxi, (block_q3_0 *)cdsti);
+}
+
+static __device__ void cpy_blck_f32_q3_0_64(const char * cxi, char * cdsti) {
+    quantize_f32_q3_0_64_block((const float *)cxi, (block_q3_0_64 *)cdsti);
 }
 
 static __device__ void cpy_blck_f32_iq4_nl(const char * cxi, char * cdsti) {

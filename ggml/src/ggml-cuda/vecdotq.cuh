@@ -112,6 +112,15 @@ static __device__ __forceinline__ uint32_t unpack_ksigns(const uint8_t v) {
 #define VDR_Q2_0_Q8_1_MMVQ 1  // Process one 32-element chunk at a time for parallelism
 #define VDR_Q2_0_Q8_1_MMQ  2  // Q2_0 group 64: 128 bits (4 ints) per block, 2 32-element chunks
 
+#define VDR_Q2_NU_Q8_1_MMVQ 1  // Process one 32-element chunk at a time for parallelism
+#define VDR_Q2_NU_Q8_1_MMQ  1
+
+#define VDR_Q3_0_Q8_1_MMVQ 1  // Process one 32-element chunk at a time for parallelism
+#define VDR_Q3_0_Q8_1_MMQ  1
+
+#define VDR_Q3_0_64_Q8_1_MMVQ 1  // Process one 32-element chunk at a time for parallelism
+#define VDR_Q3_0_64_Q8_1_MMQ  1
+
 #define VDR_Q4_0_Q8_1_MMVQ 2
 #define VDR_Q4_0_Q8_1_MMQ  4
 
@@ -761,6 +770,86 @@ static __device__ __forceinline__ float vec_dot_q2_0_q8_1(
     // Apply Q2_0's single scale and this chunk's Q8_1 scale
     const float d8 = __low2float(bq8_1_chunk->ds);
     return d2 * d8 * sumi;
+}
+
+static __device__ __forceinline__ float vec_dot_q3_0_q8_1(
+    const void * __restrict__ vbq, const block_q8_1 * __restrict__ bq8_1, const int & kbx, const int & iqs) {
+
+    const block_q3_0 * bq3_0 = (const block_q3_0 *) vbq + kbx;
+
+    // Q3_0: 32 elements, 3 bits per element, one scale per block
+    // each thread processes 4 elements starting at iqs*4
+
+    const float d3 = bq3_0->d;
+
+    int sumi = 0;
+#pragma unroll
+    for (int j = 0; j < 4; ++j) {
+        const int elem_idx = iqs*4 + j;
+        const int byte_idx = elem_idx*3/8;
+        const int bit_off  = elem_idx*3%8;
+
+        const int q = ((bq3_0->qs[byte_idx] >> bit_off) | (bq3_0->qs[byte_idx+1] << (8 - bit_off))) & 0x7;
+        sumi += (q - 4)*bq8_1->qs[iqs*4 + j];
+    }
+
+    // Apply Q3_0's single scale and Q8_1's scale
+    const float d8 = __low2float(bq8_1->ds);
+    return d3 * d8 * sumi;
+}
+
+static __device__ __forceinline__ float vec_dot_q3_0_64_q8_1(
+    const void * __restrict__ vbq, const block_q8_1 * __restrict__ bq8_1, const int & kbx, const int & iqs) {
+
+    const block_q3_0_64 * bq3_0_64 = (const block_q3_0_64 *) vbq + kbx;
+
+    // Q3_0_64: 64 elements, 3 bits per element, one scale per block
+    // Q8_1: 32 elements per block, iqs selects the chunk across two blocks
+
+    const float d3 = bq3_0_64->d;
+    const block_q8_1 * bq8_1_chunk = bq8_1 + iqs/QI8_1;
+
+    int sumi = 0;
+#pragma unroll
+    for (int j = 0; j < 4; ++j) {
+        const int elem_idx = iqs*4 + j;
+        const int byte_idx = elem_idx*3/8;
+        const int bit_off  = elem_idx*3%8;
+
+        const int q = ((bq3_0_64->qs[byte_idx] >> bit_off) | (bq3_0_64->qs[byte_idx+1] << (8 - bit_off))) & 0x7;
+        sumi += (q - 4)*bq8_1_chunk->qs[(iqs%QI8_1)*4 + j];
+    }
+
+    // Apply Q3_0_64's single scale and this chunk's Q8_1 scale
+    const float d8 = __low2float(bq8_1_chunk->ds);
+    return d3 * d8 * sumi;
+}
+
+static __device__ __forceinline__ float vec_dot_q2_nu_q8_1(
+    const void * __restrict__ vbq, const block_q8_1 * __restrict__ bq8_1, const int & kbx, const int & iqs) {
+
+    const block_q2_nu * bq2_nu = (const block_q2_nu *) vbq + kbx;
+
+    // Q2_NU: 64 elements, 2 bits per element, one scale per block
+    // uses non-uniform quantization levels, so the sum must be kept in float
+
+    const float d2 = bq2_nu->d;
+    const block_q8_1 * bq8_1_chunk = bq8_1 + iqs/QI8_1;
+
+    float sumf = 0.0f;
+#pragma unroll
+    for (int j = 0; j < 4; ++j) {
+        const int elem_idx = iqs*4 + j;
+        const int byte_idx = elem_idx/4;
+        const int bit_off  = (elem_idx%4)*2;
+
+        const int q = (bq2_nu->qs[byte_idx] >> bit_off) & 0x3;
+        sumf += q2_nu_levels[q]*bq8_1_chunk->qs[(iqs%QI8_1)*4 + j];
+    }
+
+    // Apply Q2_NU's single scale and this chunk's Q8_1 scale
+    const float d8 = __low2float(bq8_1_chunk->ds);
+    return d2 * d8 * sumf;
 }
 
 static __device__ __forceinline__ float vec_dot_q4_0_q8_1(

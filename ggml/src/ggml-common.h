@@ -99,6 +99,15 @@ typedef sycl::half2 ggml_half2;
 #define QI2_0 (QK2_0 / 32)
 #define QR2_0 1
 
+#define QI2_NU (QK2_NU / (4 * QR2_NU))
+#define QR2_NU 1
+
+#define QI3_0 (QK3_0 / (4 * QR3_0))
+#define QR3_0 1
+
+#define QI3_0_64 (QK3_0_64 / (4 * QR3_0_64))
+#define QR3_0_64 1
+
 
 #define QI4_0 (QK4_0 / (4 * QR4_0))
 #define QR4_0 2
@@ -197,6 +206,13 @@ typedef struct {
     uint8_t qs[QK2_NU / 4];  // 2 bits per element
 } block_q2_nu;
 static_assert(sizeof(block_q2_nu) == sizeof(ggml_half) + QK2_NU / 4, "wrong q2_nu block size/padding");
+
+// non-uniform 2-bit codebook levels for q2_nu (Lloyd-Max optimized for KV cache distributions)
+#if defined(__CUDACC__) || defined(__HIPCC__)
+static constexpr __device__ float q2_nu_levels[4] = {-0.619326f, -0.186363f, 0.186363f, 0.619301f};
+#elif defined(__cplusplus)
+static constexpr float q2_nu_levels[4] = {-0.619326f, -0.186363f, 0.186363f, 0.619301f};
+#endif
 
 #define QK3_0 32
 typedef struct {

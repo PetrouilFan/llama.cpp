@@ -43,6 +43,63 @@ static __device__ __forceinline__ void dequantize_q2_0(const void * vx, const in
     v.y = (c1 - 1) * d;
 }
 
+static __device__ __forceinline__ void dequantize_q2_nu(const void * vx, const int64_t ib, const int iqs, float2 & v){
+    const block_q2_nu * x = (const block_q2_nu *) vx;
+
+    const float d = x[ib].d;
+
+    // Q2_NU: 2 bits per element, 4 elements per byte.
+    // Code c in {0,1,2,3} maps to the non-uniform codebook level.
+    const int byte_index_0 = iqs / 4;
+    const int bit_offset_0 = (iqs % 4) * 2;
+
+    const int byte_index_1 = (iqs + 1) / 4;
+    const int bit_offset_1 = ((iqs + 1) % 4) * 2;
+
+    const int c0 = (x[ib].qs[byte_index_0] >> bit_offset_0) & 0x3;
+    const int c1 = (x[ib].qs[byte_index_1] >> bit_offset_1) & 0x3;
+
+    v.x = q2_nu_levels[c0] * d;
+    v.y = q2_nu_levels[c1] * d;
+}
+
+static __device__ __forceinline__ void dequantize_q3_0(const void * vx, const int64_t ib, const int iqs, float2 & v){
+    const block_q3_0 * x = (const block_q3_0 *) vx;
+
+    const float d = x[ib].d;
+
+    // Q3_0: 3 bits per element, 8 elements per 3 bytes.
+    const int byte_index_0 = iqs * 3 / 8;
+    const int bit_offset_0  = iqs * 3 % 8;
+
+    const int byte_index_1 = (iqs + 1) * 3 / 8;
+    const int bit_offset_1  = (iqs + 1) * 3 % 8;
+
+    const int val0 = ((x[ib].qs[byte_index_0] >> bit_offset_0) | (x[ib].qs[byte_index_0 + 1] << (8 - bit_offset_0))) & 0x7;
+    const int val1 = ((x[ib].qs[byte_index_1] >> bit_offset_1) | (x[ib].qs[byte_index_1 + 1] << (8 - bit_offset_1))) & 0x7;
+
+    v.x = (val0 - 4) * d;
+    v.y = (val1 - 4) * d;
+}
+
+static __device__ __forceinline__ void dequantize_q3_0_64(const void * vx, const int64_t ib, const int iqs, float2 & v){
+    const block_q3_0_64 * x = (const block_q3_0_64 *) vx;
+
+    const float d = x[ib].d;
+
+    const int byte_index_0 = iqs * 3 / 8;
+    const int bit_offset_0  = iqs * 3 % 8;
+
+    const int byte_index_1 = (iqs + 1) * 3 / 8;
+    const int bit_offset_1  = (iqs + 1) * 3 % 8;
+
+    const int val0 = ((x[ib].qs[byte_index_0] >> bit_offset_0) | (x[ib].qs[byte_index_0 + 1] << (8 - bit_offset_0))) & 0x7;
+    const int val1 = ((x[ib].qs[byte_index_1] >> bit_offset_1) | (x[ib].qs[byte_index_1 + 1] << (8 - bit_offset_1))) & 0x7;
+
+    v.x = (val0 - 4) * d;
+    v.y = (val1 - 4) * d;
+}
+
 static __device__ __forceinline__ void dequantize_q4_0(const void * vx, const int64_t ib, const int iqs, float2 & v){
     const block_q4_0 * x = (const block_q4_0 *) vx;
 

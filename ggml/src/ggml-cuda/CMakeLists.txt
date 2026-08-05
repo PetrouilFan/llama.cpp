@@ -119,8 +119,26 @@ if (CUDAToolkit_FOUND)
     else()
         list(APPEND GGML_SOURCES_CUDA
             template-instances/fattn-vec-instance-f16-f16.cu
+            template-instances/fattn-vec-instance-f16-q3_0.cu
+            template-instances/fattn-vec-instance-f16-q3_0_64.cu
+            template-instances/fattn-vec-instance-f16-q2_nu.cu
+            template-instances/fattn-vec-instance-q3_0-q3_0.cu
+            template-instances/fattn-vec-instance-q3_0-q4_0.cu
+            template-instances/fattn-vec-instance-q3_0-q8_0.cu
+            template-instances/fattn-vec-instance-q3_0-q2_nu.cu
+            template-instances/fattn-vec-instance-q3_0_64-q3_0_64.cu
+            template-instances/fattn-vec-instance-q3_0_64-f16.cu
+            template-instances/fattn-vec-instance-q2_nu-q2_nu.cu
+            template-instances/fattn-vec-instance-q2_nu-f16.cu
+            template-instances/fattn-vec-instance-q2_nu-q3_0_64.cu
             template-instances/fattn-vec-instance-q4_0-q4_0.cu
+            template-instances/fattn-vec-instance-q4_0-q3_0.cu
+            template-instances/fattn-vec-instance-q4_0-q3_0_64.cu
+            template-instances/fattn-vec-instance-q4_0-q2_nu.cu
             template-instances/fattn-vec-instance-q8_0-q8_0.cu
+            template-instances/fattn-vec-instance-q8_0-q3_0.cu
+            template-instances/fattn-vec-instance-q8_0-q3_0_64.cu
+            template-instances/fattn-vec-instance-q8_0-q2_nu.cu
             template-instances/fattn-vec-instance-bf16-bf16.cu)
     endif()
 
