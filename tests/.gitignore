@@ -1,6 +1,7 @@
 *
 !*.*
 !snapshots/
+!beyond-perplexity/
 *.o
 ggml-common.h
 **/*.swp
