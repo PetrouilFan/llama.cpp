@@ -1,0 +1,48 @@
+{
+  "format_version": 1,
+  "title": "beyond-perplexity legacy golden reference",
+  "source": {
+    "repo": "legacy experimental llama.cpp (see legacy_reference_manifest provenance)",
+    "commit": "bc80cdb03636f462208d18ea2d43213cd1c161f2",
+    "tag": "paper-evidence-freeze-v1",
+    "q2_nu_codebook_sha256": "af450f1aec81b9a23e346640e27ab3150f5a9827b424750eda61d4104dea6713"
+  },
+  "generation": {
+    "command": "scripts/beyond-perplexity/legacy_golden/build_harness.sh <legacy-repo>; scripts/beyond-perplexity/legacy_golden/build/golden_host > scripts/beyond-perplexity/legacy_golden/build/golden_cpu.raw; scripts/beyond-perplexity/legacy_golden/build/golden_q2nu > scripts/beyond-perplexity/legacy_golden/build/golden_q2nu.raw; python3 scripts/beyond-perplexity/legacy_golden/generate.py <legacy-repo>",
+    "host_compiler": "gcc (GCC) 16.1.1 20260625",
+    "cuda_compiler": "Build cuda_13.3.r13.3/compiler.38244171_0",
+    "binaries_sha256": {
+      "golden_host": "0e3eabe0c259bd6ddb97aebeef0b5f993f83993a6b65c0acf56c9f071c2b2cb9",
+      "golden_q2nu": "00f2e9bfa42c535c71d38c245b1a4f0d726e93c30a07b97ef3d050af47d343ee"
+    }
+  },
+  "input_dtype": "float32",
+  "input_hashes_sha256": {
+    "q2_0": "b76fed8bf996753e0889f1a50ab519a9e6e7b075025e6e4442065642a710f603",
+    "q3_0": "68fd92fa7f9c33c90f7469a37de74a2379af5d246182d12bccc487cd6d2afd65",
+    "q3_0_64": "be7bdb5d5005f2cf700fe97c154d3965bc4d78951abc1ca2e4eaa750fe5413bc",
+    "q2_nu": "3a14a355de41cc53f3248fa13a6a82ec11d3b44eee5d560421487393d128e96c"
+  },
+  "tolerances": {
+    "cpu_dequant_abs": 1e-06,
+    "cuda_dequant_abs": 0.002
+  },
+  "coverage": {
+    "per_type": [
+      "zeros",
+      "const_pos",
+      "const_neg",
+      "extrema",
+      "thresh",
+      "all_codes",
+      "all_positions",
+      "random"
+    ],
+    "q2_0_note": "uniform q2_0: d = amax, codes 0..2 used (code 3 unreachable), levels {-amax, 0, +amax}",
+    "q2_nu_note": "non-uniform q2_0: d = amax, thresholds -0.403/0.0/+0.403, levels from codebook sha",
+    "q3_note": "q3_0/q3_0_64: d = max/-4, 8 codes, levels (c-4)*d",
+    "packed_note": "q2 families: byte j/4, bit (j%4)*2; q3 families: byte (j*3)/8, bit (j*3)%8"
+  },
+  "no_model_data": true,
+  "no_private_data": true
+}

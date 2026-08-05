@@ -58,6 +58,11 @@ struct llama_cparams {
     enum llama_context_type ctx_type;
     enum llama_pooling_type pooling_type;
 
+    // per-layer KV cache types, indexed by model layer id
+    // empty vectors = use type_k/type_v for all layers
+    std::vector<ggml_type> kv_type_k;
+    std::vector<ggml_type> kv_type_v;
+
     ggml_backend_sched_eval_callback cb_eval;
     void * cb_eval_user_data;
 

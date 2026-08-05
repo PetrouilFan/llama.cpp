@@ -75,9 +75,11 @@ llama_kv_cache::llama_kv_cache(
                  uint32_t   n_swa,
            llama_swa_type   swa_type,
            llama_memory_t   mem_other,
-    const layer_filter_cb & filter,
-    const  layer_reuse_cb & reuse,
-    const  layer_share_cb & share) :
+     const layer_filter_cb & filter,
+     const  layer_reuse_cb & reuse,
+     const  layer_share_cb & share,
+     const std::vector<ggml_type> & type_k_layers,
+     const std::vector<ggml_type> & type_v_layers) :
     model(model), hparams(hparams), v_trans(v_trans),
     n_seq_max(n_seq_max), n_stream(unified ? 1 : n_seq_max), n_pad(n_pad), n_swa(n_swa), swa_type(swa_type),
     other(static_cast<llama_kv_cache *>(mem_other)),
@@ -228,8 +230,12 @@ llama_kv_cache::llama_kv_cache(
         const bool has_k = true;
         const bool has_v = !is_mla;
 
-        ggml_tensor * k = has_k ? ggml_new_tensor_3d(ctx, type_k, n_embd_k_gqa, kv_size, n_stream) : nullptr;
-        ggml_tensor * v = has_v ? ggml_new_tensor_3d(ctx, type_v, n_embd_v_gqa, kv_size, n_stream) : nullptr;
+        // per-layer cache types, empty vectors = uniform type_k/type_v
+        const ggml_type type_k_i = type_k_layers.empty() ? type_k : type_k_layers[il];
+        const ggml_type type_v_i = type_v_layers.empty() ? type_v : type_v_layers[il];
+
+        ggml_tensor * k = has_k ? ggml_new_tensor_3d(ctx, type_k_i, n_embd_k_gqa, kv_size, n_stream) : nullptr;
+        ggml_tensor * v = has_v ? ggml_new_tensor_3d(ctx, type_v_i, n_embd_v_gqa, kv_size, n_stream) : nullptr;
 
         has_k && ggml_format_name(k, "cache_k_l%d", il);
         has_v && ggml_format_name(v, "cache_v_l%d", il);
@@ -296,10 +302,17 @@ llama_kv_cache::llama_kv_cache(
         const size_t memory_size_k = size_k_bytes();
         const size_t memory_size_v = size_v_bytes();
 
-        LLAMA_LOG_INFO("%s: size = %7.2f MiB (%6u cells, %3d layers, %2u/%u seqs), K (%s): %7.2f MiB, V (%s): %7.2f MiB\n", __func__,
-                (float)(memory_size_k + memory_size_v) / (1024.0f * 1024.0f), kv_size, (int) layers.size(), n_seq_max, n_stream,
-                ggml_type_name(type_k), (float)memory_size_k / (1024.0f * 1024.0f),
-                ggml_type_name(type_v), (float)memory_size_v / (1024.0f * 1024.0f));
+        if (!type_k_layers.empty()) {
+            LLAMA_LOG_INFO("%s: size = %7.2f MiB (%6u cells, %3d layers, %2u/%u seqs), K: %7.2f MiB, V: %7.2f MiB (mixed-precision policy)\n", __func__,
+                    (float)(memory_size_k + memory_size_v) / (1024.0f * 1024.0f), kv_size, (int) layers.size(), n_seq_max, n_stream,
+                    (float)memory_size_k / (1024.0f * 1024.0f),
+                    (float)memory_size_v / (1024.0f * 1024.0f));
+        } else {
+            LLAMA_LOG_INFO("%s: size = %7.2f MiB (%6u cells, %3d layers, %2u/%u seqs), K (%s): %7.2f MiB, V (%s): %7.2f MiB\n", __func__,
+                    (float)(memory_size_k + memory_size_v) / (1024.0f * 1024.0f), kv_size, (int) layers.size(), n_seq_max, n_stream,
+                    ggml_type_name(type_k), (float)memory_size_k / (1024.0f * 1024.0f),
+                    ggml_type_name(type_v), (float)memory_size_v / (1024.0f * 1024.0f));
+        }
     }
 
     // TODO: refactor [TAG_KV_CACHE_SHARE_CELLS]
@@ -316,10 +329,15 @@ llama_kv_cache::llama_kv_cache(
             LLAMA_LOG_WARN("%s: attention rotation force disabled (LLAMA_ATTN_ROT_DISABLE)\n", __func__);
         }
 
+        // for mixed-precision caches, apply the rotation if any layer is quantized
+        const bool type_k_quant =
+            type_k_layers.empty() ? ggml_is_quantized(type_k) :
+            std::any_of(type_k_layers.begin(), type_k_layers.end(), [](ggml_type t) { return ggml_is_quantized(t); });
+
         attn_rot_k =
             !attn_rot_disable &&
             n_embd_head_k_all > 0 &&
-            ggml_is_quantized(type_k) &&
+            type_k_quant &&
             hparams.n_embd_head_k() % 64 == 0;
 
         // always create Hadamard rotation tensors for DeepSeek lightning indexers
@@ -328,10 +346,14 @@ llama_kv_cache::llama_kv_cache(
             attn_rot_k = true;
         }
 
+        const bool type_v_quant =
+            type_v_layers.empty() ? ggml_is_quantized(type_v) :
+            std::any_of(type_v_layers.begin(), type_v_layers.end(), [](ggml_type t) { return ggml_is_quantized(t); });
+
         attn_rot_v =
             !attn_rot_disable &&
             n_embd_head_v_all > 0 &&
-            ggml_is_quantized(type_v) &&
+            type_v_quant &&
             hparams.n_embd_head_v() % 64 == 0;
     }
 

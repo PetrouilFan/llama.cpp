@@ -6,3 +6,5 @@
 ggml-common.h
 **/*.swp
 !peg-parser
+
+!beyond-perplexity/reference/

@@ -296,6 +296,10 @@ if (NOT GGML_BACKEND_DL)
     llama_build(test-beyond-perplexity-quants.cpp)
     llama_test(test-beyond-perplexity-quants
         ARGS ${CMAKE_CURRENT_SOURCE_DIR}/beyond-perplexity/reference)
+
+    llama_build(test-kv-cache-policy.cpp)
+    llama_test(test-kv-cache-policy
+        ARGS ${CMAKE_CURRENT_SOURCE_DIR}/beyond-perplexity/reference/policies)
 endif()
 
 # libmtmd

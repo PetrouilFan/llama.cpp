@@ -1316,11 +1316,36 @@ common_init_result::common_init_result(common_params & params, bool model_only) 
         cparams.n_samplers = pimpl->samplers_seq_config.size();
     }
 
+    // parse the KV cache policy (if any) - the policy is consumed by llama_init_from_model and can be freed afterwards
+    llama_kv_cache_policy * policy = nullptr;
+    std::string policy_json;
+    if (!params.kv_cache_policy.empty()) {
+        std::ifstream file(params.kv_cache_policy);
+        if (!file.is_open()) {
+            COM_ERR("failed to open KV cache policy file '%s'\n", params.kv_cache_policy.c_str());
+            return;
+        }
+        std::stringstream ss;
+        ss << file.rdbuf();
+        policy_json = ss.str();
+
+        policy = llama_kv_cache_policy_parse(policy_json.c_str());
+        if (policy == nullptr) {
+            COM_ERR("failed to parse KV cache policy file '%s'\n", params.kv_cache_policy.c_str());
+            return;
+        }
+
+        cparams.kv_cache_policy = policy;
+    }
+
     llama_context * lctx = llama_init_from_model(model, cparams);
     if (lctx == NULL) {
         COM_ERR("failed to create context with model '%s'\n", params.model.path.c_str());
+        llama_kv_cache_policy_free(policy);
         return;
     }
+
+    llama_kv_cache_policy_free(policy);
 
     pimpl->context.reset(lctx);
 }

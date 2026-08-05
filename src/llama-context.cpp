@@ -6,6 +6,7 @@
 #include "llama-impl.h"
 #include "llama-batch.h"
 #include "llama-io.h"
+#include "llama-kv-cache-policy.h"
 #include "llama-memory.h"
 #include "llama-mmap.h"
 #include "llama-model.h"
@@ -313,6 +314,62 @@ llama_context::llama_context(
     LLAMA_LOG_INFO("%s: n_rs_seq      = %u\n",   __func__, cparams.n_rs_seq);
     LLAMA_LOG_INFO("%s: n_outputs_max = %u\n",   __func__, cparams.n_outputs_max);
 
+    // resolve the per-layer KV cache policy, if provided
+    if (params.kv_cache_policy != nullptr) {
+        const auto & policy = *params.kv_cache_policy;
+
+        if (policy.type_k.size() != hparams.n_layer_all || policy.type_v.size() != hparams.n_layer_all) {
+            LLAMA_LOG_ERROR("%s: KV cache policy layer count (%zu) does not match the model (%u)\n",
+                    __func__, policy.type_v.size(), hparams.n_layer_all);
+            throw std::runtime_error("invalid KV cache policy");
+        }
+
+        // architectures with special memory layouts do not support per-layer cache types
+        const bool special_memory =
+            model.arch == LLM_ARCH_MINIMAX_M3  ||
+            model.arch == LLM_ARCH_GLM_DSA     ||
+            model.arch == LLM_ARCH_DEEPSEEK32  ||
+            model.arch == LLM_ARCH_DEEPSEEK4   ||
+            model.arch == LLM_ARCH_GEMMA3N     ||
+            model.arch == LLM_ARCH_GEMMA4      ||
+            llm_arch_is_recurrent(model.arch)  ||
+            llm_arch_is_hybrid   (model.arch)  ||
+            hparams.swa_type != LLAMA_SWA_TYPE_NONE;
+
+        if (special_memory) {
+            LLAMA_LOG_ERROR("%s: KV cache policy is not supported for %s\n", __func__, model.arch_name().c_str());
+            throw std::runtime_error("invalid KV cache policy");
+        }
+
+        for (uint32_t il = 0; il < hparams.n_layer_all; ++il) {
+            const ggml_type type_k = policy.type_k[il];
+            const ggml_type type_v = policy.type_v[il];
+
+            if (hparams.n_embd_head_k(il) % ggml_blck_size(type_k) != 0) {
+                LLAMA_LOG_ERROR("%s: layer %u K cache type %s with block size %u does not divide n_embd_head_k=%u\n",
+                        __func__, il, ggml_type_name(type_k), ggml_blck_size(type_k), (uint32_t) hparams.n_embd_head_k(il));
+                throw std::runtime_error("invalid KV cache policy");
+            }
+
+            if (hparams.n_embd_head_v(il) % ggml_blck_size(type_v) != 0) {
+                LLAMA_LOG_ERROR("%s: layer %u V cache type %s with block size %u does not divide n_embd_head_v=%u\n",
+                        __func__, il, ggml_type_name(type_v), ggml_blck_size(type_v), (uint32_t) hparams.n_embd_head_v(il));
+                throw std::runtime_error("invalid KV cache policy");
+            }
+
+            if (ggml_is_quantized(type_v) && !cparams.flash_attn) {
+                LLAMA_LOG_ERROR("%s: layer %u quantized V cache type %s requires flash attention\n",
+                        __func__, il, ggml_type_name(type_v));
+                throw std::runtime_error("invalid KV cache policy");
+            }
+        }
+
+        cparams.kv_type_k = policy.type_k;
+        cparams.kv_type_v = policy.type_v;
+
+        LLAMA_LOG_INFO("%s: KV cache policy: %s\n", __func__, policy.summary.c_str());
+    }
+
     if (cparams.n_ctx_seq < hparams.n_ctx_train) {
         LLAMA_LOG_INFO("%s: n_ctx_seq (%u) < n_ctx_train (%u) -- the full capacity of the model will not be utilized\n",
                 __func__, cparams.n_ctx_seq, hparams.n_ctx_train);
@@ -381,11 +438,13 @@ llama_context::llama_context(
     // init the memory module
     if (!hparams.vocab_only) {
         llama_memory_params params_mem = {
-            /*.type_k    =*/ params.type_k,
-            /*.type_v    =*/ params.type_v,
-            /*.swa_full  =*/ params.swa_full,
-            /*.ctx_type  =*/ cparams.ctx_type,
-            /*.mem_other =*/ llama_get_memory(cparams.ctx_other),
+            /*.type_k         =*/ params.type_k,
+            /*.type_v         =*/ params.type_v,
+            /*.type_k_layers  =*/ cparams.kv_type_k,
+            /*.type_v_layers  =*/ cparams.kv_type_v,
+            /*.swa_full       =*/ params.swa_full,
+            /*.ctx_type       =*/ cparams.ctx_type,
+            /*.mem_other      =*/ llama_get_memory(cparams.ctx_other),
         };
 
         memory.reset(model.create_memory(params_mem, cparams));
@@ -3507,6 +3566,7 @@ llama_context_params llama_context_default_params() {
         /*.cb_eval_user_data           =*/ nullptr,
         /*.type_k                      =*/ GGML_TYPE_F16,
         /*.type_v                      =*/ GGML_TYPE_F16,
+        /*.kv_cache_policy             =*/ nullptr,
         /*.abort_callback              =*/ nullptr,
         /*.abort_callback_data         =*/ nullptr,
         /*.embeddings                  =*/ false,

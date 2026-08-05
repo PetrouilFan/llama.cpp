@@ -2392,6 +2392,14 @@ common_params_context common_params_parser_init(common_params & params, llama_ex
         }
     ).set_env("LLAMA_ARG_CACHE_TYPE_V"));
     add_opt(common_arg(
+        {"--kv-cache-policy"}, "FILE",
+        "path to a KV cache policy file (per-layer KV cache types)\n"
+        "overrides --cache-type-k and --cache-type-v",
+        [](common_params & params, const std::string & value) {
+            params.kv_cache_policy = value;
+        }
+    ));
+    add_opt(common_arg(
         {"--hellaswag"},
         "compute HellaSwag score over random tasks from datafile supplied with -f",
         [](common_params & params) {

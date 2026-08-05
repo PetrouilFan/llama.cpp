@@ -6,6 +6,7 @@
 #include <map>
 #include <memory>
 #include <functional>
+#include <vector>
 
 struct llama_ubatch;
 
@@ -18,6 +19,11 @@ struct llama_memory_params {
     // kv cache
     ggml_type type_k;
     ggml_type type_v;
+
+    // per-layer cache types, indexed by model layer id
+    // empty vectors = use type_k/type_v for all layers
+    std::vector<ggml_type> type_k_layers;
+    std::vector<ggml_type> type_v_layers;
 
     // use full-size SWA cache
     bool swa_full;

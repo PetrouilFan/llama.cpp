@@ -379,6 +379,10 @@ extern "C" {
         enum ggml_type type_k; // data type for K cache [EXPERIMENTAL]
         enum ggml_type type_v; // data type for V cache [EXPERIMENTAL]
 
+        // per-layer KV cache policy (opaque, see llama_kv_cache_policy_parse)
+        // NULL = use type_k/type_v for all layers
+        const struct llama_kv_cache_policy * kv_cache_policy;
+
         // Abort callback
         // if it returns true, execution of llama_decode() will be aborted
         // currently works only with CPU execution
@@ -528,6 +532,21 @@ extern "C" {
     LLAMA_API struct llama_context * llama_init_from_model(
                      struct llama_model * model,
             struct llama_context_params   params);
+
+    //
+    // KV cache policy
+    //
+
+    // opaque handle to a per-layer KV cache policy parsed from a policy JSON
+    // (see tools/llama-perplexity --kv-cache-policy)
+    struct llama_kv_cache_policy;
+
+    // parse and validate a policy JSON string, returns NULL on error
+    // the returned handle is used by llama_context_params.kv_cache_policy
+    LLAMA_API struct llama_kv_cache_policy * llama_kv_cache_policy_parse(const char * json_str);
+
+    // free a policy handle returned by llama_kv_cache_policy_parse
+    LLAMA_API void llama_kv_cache_policy_free(struct llama_kv_cache_policy * policy);
 
     DEPRECATED(LLAMA_API struct llama_context * llama_new_context_with_model(
                      struct llama_model * model,

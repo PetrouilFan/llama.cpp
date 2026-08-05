@@ -10,6 +10,7 @@ file(GLOB LLAMA_MODELS_SOURCES "models/*.cpp")
 
 add_library(llama
             ../include/llama.h
+            ../examples/gguf-hash/deps/sha256/sha256.c
             llama.cpp
             llama-adapter.cpp
             llama-arch.cpp
@@ -27,6 +28,7 @@ add_library(llama
             llama-kv-cache-dsa.cpp
             llama-kv-cache-msa.cpp
             llama-kv-cache-dsv4.cpp
+            llama-kv-cache-policy.cpp
             llama-memory.cpp
             llama-memory-hybrid.cpp
             llama-memory-hybrid-iswa.cpp
@@ -52,6 +54,8 @@ set_target_properties(llama PROPERTIES
 
 target_include_directories(llama PRIVATE .)
 target_include_directories(llama PUBLIC ../include)
+target_include_directories(llama PRIVATE ../vendor)
+target_include_directories(llama PRIVATE ../examples/gguf-hash/deps)
 target_compile_features   (llama PRIVATE cxx_std_17) # don't bump
 
 target_link_libraries(llama PUBLIC ggml)
