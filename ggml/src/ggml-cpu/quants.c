@@ -30,6 +30,18 @@ void quantize_row_q2_0(const float * GGML_RESTRICT x, void * GGML_RESTRICT y, in
     quantize_row_q2_0_ref(x, y, k);
 }
 
+void quantize_row_q2_nu(const float * GGML_RESTRICT x, void * GGML_RESTRICT y, int64_t k) {
+    quantize_row_q2_nu_ref(x, y, k);
+}
+
+void quantize_row_q3_0(const float * GGML_RESTRICT x, void * GGML_RESTRICT y, int64_t k) {
+    quantize_row_q3_0_ref(x, y, k);
+}
+
+void quantize_row_q3_0_64(const float * GGML_RESTRICT x, void * GGML_RESTRICT y, int64_t k) {
+    quantize_row_q3_0_64_ref(x, y, k);
+}
+
 void quantize_row_q4_0(const float * GGML_RESTRICT x, void * GGML_RESTRICT y, int64_t k) {
     quantize_row_q4_0_ref(x, y, k);
 }
@@ -211,6 +223,148 @@ void ggml_vec_dot_q2_0_q8_0_generic(int n, float * GGML_RESTRICT s, size_t bs, c
                 sumi_block += ((int)((byte >> 2) & 3) - 1) * qy[b*4 + 1];
                 sumi_block += ((int)((byte >> 4) & 3) - 1) * qy[b*4 + 2];
                 sumi_block += ((int)((byte >> 6) & 3) - 1) * qy[b*4 + 3];
+            }
+
+            sumi += d1 * sumi_block;
+        }
+
+        sumf += d0 * sumi;
+    }
+
+    *s = sumf;
+}
+
+void ggml_vec_dot_q2_nu_q8_0_generic(int n, float * GGML_RESTRICT s, size_t bs, const void * GGML_RESTRICT vx, size_t bx, const void * GGML_RESTRICT vy, size_t by, int nrc) {
+    const int qk = QK2_NU;
+    const int nb = n / qk;
+
+    assert(n % qk == 0);
+    assert(nrc == 1);
+    UNUSED(nrc);
+    UNUSED(bx);
+    UNUSED(by);
+    UNUSED(bs);
+
+    const block_q2_nu * GGML_RESTRICT x = vx;
+    const block_q8_0  * GGML_RESTRICT y = vy;
+
+    const float levels[4] = { -0.619326f, -0.186363f, 0.186363f, 0.619301f };
+
+    float sumf = 0.0f;
+
+    for (int i = 0; i < nb; i++) {
+        const float d0 = GGML_CPU_FP16_TO_FP32(x[i].d);
+
+        float sumi = 0.0f;
+
+        // group 64: one Q2_NU block (64 weights) maps to two Q8_0 blocks (2 * 32 = 64)
+        for (int k = 0; k < 2; k++) {
+            const block_q8_0 * GGML_RESTRICT yb = &y[i * 2 + k];
+            const float d1 = GGML_CPU_FP16_TO_FP32(yb->d);
+            float sumi_block = 0.0f;
+
+            const uint8_t * GGML_RESTRICT qs = &x[i].qs[k * 8];
+            const int8_t  * GGML_RESTRICT qy = yb->qs;
+
+            for (int b = 0; b < 8; ++b) {
+                const uint8_t byte = qs[b];
+                // Extract 4 two-bit codes, map via the non-uniform level LUT
+                sumi_block += levels[(byte >> 0) & 3] * qy[b*4 + 0];
+                sumi_block += levels[(byte >> 2) & 3] * qy[b*4 + 1];
+                sumi_block += levels[(byte >> 4) & 3] * qy[b*4 + 2];
+                sumi_block += levels[(byte >> 6) & 3] * qy[b*4 + 3];
+            }
+
+            sumi += d1 * sumi_block;
+        }
+
+        sumf += d0 * sumi;
+    }
+
+    *s = sumf;
+}
+
+void ggml_vec_dot_q3_0_q8_0_generic(int n, float * GGML_RESTRICT s, size_t bs, const void * GGML_RESTRICT vx, size_t bx, const void * GGML_RESTRICT vy, size_t by, int nrc) {
+    const int qk = QK3_0;
+    const int nb = n / qk;
+
+    assert(n % qk == 0);
+    assert(nrc == 1);
+    UNUSED(nrc);
+    UNUSED(bx);
+    UNUSED(by);
+    UNUSED(bs);
+
+    const block_q3_0 * GGML_RESTRICT x = vx;
+    const block_q8_0 * GGML_RESTRICT y = vy;
+
+    float sumf = 0.0f;
+
+    for (int i = 0; i < nb; i++) {
+        const float d0 = GGML_CPU_FP16_TO_FP32(x[i].d);
+        const float d1 = GGML_CPU_FP16_TO_FP32(y[i].d);
+
+        int sumi = 0;
+
+        const uint8_t * GGML_RESTRICT qs = x[i].qs;
+        const int8_t  * GGML_RESTRICT qy = y[i].qs;
+
+        // 3-bit values packed across byte boundaries: 32 values in 12 bytes
+        for (int j = 0; j < QK3_0; j++) {
+            const int byte_idx = (j*3) / 8;
+            const int bit_off  = (j*3) % 8;
+            int xi = (qs[byte_idx] >> bit_off) & 7;
+            if (bit_off > 5) {
+                xi |= (qs[byte_idx + 1] << (8 - bit_off)) & 7;
+            }
+            sumi += (xi - 4) * qy[j];
+        }
+
+        sumf += d0 * d1 * sumi;
+    }
+
+    *s = sumf;
+}
+
+void ggml_vec_dot_q3_0_64_q8_0_generic(int n, float * GGML_RESTRICT s, size_t bs, const void * GGML_RESTRICT vx, size_t bx, const void * GGML_RESTRICT vy, size_t by, int nrc) {
+    const int qk = QK3_0_64;
+    const int nb = n / qk;
+
+    assert(n % qk == 0);
+    assert(nrc == 1);
+    UNUSED(nrc);
+    UNUSED(bx);
+    UNUSED(by);
+    UNUSED(bs);
+
+    const block_q3_0_64 * GGML_RESTRICT x = vx;
+    const block_q8_0    * GGML_RESTRICT y = vy;
+
+    float sumf = 0.0f;
+
+    for (int i = 0; i < nb; i++) {
+        const float d0 = GGML_CPU_FP16_TO_FP32(x[i].d);
+
+        float sumi = 0.0f;
+
+        // group 64: one Q3_0_64 block (64 weights) maps to two Q8_0 blocks (2 * 32 = 64)
+        for (int k = 0; k < 2; k++) {
+            const block_q8_0 * GGML_RESTRICT yb = &y[i * 2 + k];
+            const float d1 = GGML_CPU_FP16_TO_FP32(yb->d);
+            int sumi_block = 0;
+
+            const uint8_t * GGML_RESTRICT qs = &x[i].qs[k * 12];
+            const int8_t  * GGML_RESTRICT qy = yb->qs;
+
+            // 3-bit values packed across byte boundaries: 32 values in 12 bytes
+            for (int j = 0; j < 32; j++) {
+                const int byte_idx = (j*3) / 8;
+                const int bit_off  = (j*3) % 8;
+                int xi = (qs[byte_idx] >> bit_off) & 7;
+                if (bit_off > 5) {
+                    xi |= (qs[byte_idx + 1] << (8 - bit_off)) & 7;
+                }
+                sumi_block += (xi - 4) * qy[j];
             }
 
             sumi += d1 * sumi_block;
