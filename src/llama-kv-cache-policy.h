@@ -17,6 +17,15 @@ struct llama_kv_cache_policy {
 
     // deterministic one-line summary of the policy
     std::string summary;
+
+    // metadata from the policy file, kept for runtime validation
+    // (empty/zero if the field is absent from the policy)
+    std::string policy_id;
+    std::string architecture;
+    std::string model_sha256;
+    std::string codebook_sha256;
+    uint32_t    n_kv_heads = 0;
+    uint32_t    head_dim   = 0;
 };
 
 // parse a policy from the given JSON string, returns NULL on error

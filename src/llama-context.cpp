@@ -13,8 +13,14 @@
 #include "llama-ext.h"
 #include "llama.h"
 
+extern "C" {
+#include "sha256/sha256.h"
+}
+
 #include <cinttypes>
+#include <algorithm>
 #include <cmath>
+#include <cstdio>
 #include <cstring>
 #include <limits>
 #include <stdexcept>
@@ -23,6 +29,34 @@
 //
 // llama_context
 //
+
+// sha256 of the model file, streaming (model file can be several GB)
+static std::string model_file_sha256(const std::string & path) {
+    FILE * fp = fopen(path.c_str(), "rb");
+    if (fp == nullptr) {
+        return "";
+    }
+
+    sha256_t ctx;
+    sha256_init(&ctx);
+
+    unsigned char buf[1 << 16];
+    size_t n;
+    while ((n = fread(buf, 1, sizeof(buf), fp)) > 0) {
+        sha256_update(&ctx, buf, n);
+    }
+    fclose(fp);
+
+    unsigned char digest[SHA256_DIGEST_SIZE];
+    sha256_final(&ctx, digest);
+
+    char hex[SHA256_DIGEST_SIZE * 2 + 1];
+    for (size_t i = 0; i < SHA256_DIGEST_SIZE; ++i) {
+        snprintf(hex + 2 * i, 3, "%02x", digest[i]);
+    }
+
+    return std::string(hex);
+}
 
 static llm_graph_type ctx_type_to_graph_type(llama_context_type ctx_type) {
     switch (ctx_type) {
@@ -360,6 +394,70 @@ llama_context::llama_context(
             if (ggml_is_quantized(type_v) && !cparams.flash_attn) {
                 LLAMA_LOG_ERROR("%s: layer %u quantized V cache type %s requires flash attention\n",
                         __func__, il, ggml_type_name(type_v));
+                throw std::runtime_error("invalid KV cache policy");
+            }
+
+            // uniform Q2_0 has no KV write path in this build (use Q2_NU)
+            if (type_k == GGML_TYPE_Q2_0 || type_v == GGML_TYPE_Q2_0) {
+                LLAMA_LOG_ERROR("%s: layer %u uniform Q2_0 cache type is not supported (use q2_nu)\n",
+                        __func__, il);
+                throw std::runtime_error("invalid KV cache policy");
+            }
+        }
+
+        // policy metadata validation against the model
+        if (!policy.architecture.empty() && policy.architecture != model.arch_name()) {
+            LLAMA_LOG_ERROR("%s: KV cache policy architecture '%s' does not match the model architecture '%s'\n",
+                    __func__, policy.architecture.c_str(), model.arch_name().c_str());
+            throw std::runtime_error("invalid KV cache policy");
+        }
+
+        if (policy.n_kv_heads != 0 && policy.n_kv_heads != (uint32_t) hparams.n_head_kv()) {
+            LLAMA_LOG_ERROR("%s: KV cache policy n_kv_heads (%u) does not match the model (%u)\n",
+                    __func__, policy.n_kv_heads, (uint32_t) hparams.n_head_kv());
+            throw std::runtime_error("invalid KV cache policy");
+        }
+
+        if (policy.head_dim != 0 && policy.head_dim != (uint32_t) hparams.n_embd_head_k()) {
+            LLAMA_LOG_ERROR("%s: KV cache policy head_dim (%u) does not match the model (%u)\n",
+                    __func__, policy.head_dim, (uint32_t) hparams.n_embd_head_k());
+            throw std::runtime_error("invalid KV cache policy");
+        }
+
+        // the only NU codebook this build implements is the paper one; a policy
+        // that uses Q2_NU must declare it
+        const std::string nu_codebook_sha256 = "af450f1aec81b9a23e346640e27ab3150f5a9827b424750eda61d4104dea6713";
+
+        const bool uses_q2_nu =
+            std::find(policy.type_k.begin(), policy.type_k.end(), GGML_TYPE_Q2_NU) != policy.type_k.end() ||
+            std::find(policy.type_v.begin(), policy.type_v.end(), GGML_TYPE_Q2_NU) != policy.type_v.end();
+
+        // the only NU codebook this build implements is the paper one; a policy
+        // that uses Q2_NU must declare it, and any declared hash must match it
+        if (uses_q2_nu && policy.codebook_sha256.empty()) {
+            LLAMA_LOG_ERROR("%s: KV cache policy uses q2_nu but does not declare codebook_sha256\n", __func__);
+            throw std::runtime_error("invalid KV cache policy");
+        }
+        if (!policy.codebook_sha256.empty() && policy.codebook_sha256 != nu_codebook_sha256) {
+            LLAMA_LOG_ERROR("%s: KV cache policy codebook_sha256 '%s' does not match the implemented NU codebook '%s'\n",
+                    __func__, policy.codebook_sha256.c_str(), nu_codebook_sha256.c_str());
+            throw std::runtime_error("invalid KV cache policy");
+        }
+
+        if (!policy.model_sha256.empty()) {
+            if (model.path_model.empty()) {
+                LLAMA_LOG_ERROR("%s: KV cache policy declares model_sha256 but the model was not loaded from a file\n", __func__);
+                throw std::runtime_error("invalid KV cache policy");
+            }
+            const std::string file_sha256 = model_file_sha256(model.path_model);
+            if (file_sha256.empty()) {
+                LLAMA_LOG_ERROR("%s: failed to read the model file '%s' to verify model_sha256\n",
+                        __func__, model.path_model.c_str());
+                throw std::runtime_error("invalid KV cache policy");
+            }
+            if (file_sha256 != policy.model_sha256) {
+                LLAMA_LOG_ERROR("%s: KV cache policy model_sha256 '%s' does not match the model file '%s'\n",
+                        __func__, policy.model_sha256.c_str(), file_sha256.c_str());
                 throw std::runtime_error("invalid KV cache policy");
             }
         }

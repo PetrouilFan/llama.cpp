@@ -1,0 +1,20 @@
+cff-version: 1.2.0
+message: "If you use this software in your research, please cite it and the underlying llama.cpp project."
+title: "Beyond Perplexity: static mixed-precision KV cache for llama.cpp"
+abstract: "Clean current-upstream implementation of static mixed-precision KV caching for llama.cpp. Adds the NU-Q2, Q3_0 and Q3_0_64 formats, a versioned per-layer KV cache policy interface, and CUDA support, reproducing the Beyond Perplexity paper operating points (Q4K-Q4V, Q4K-Q3V, C2)."
+authors:
+  - family-names: "PetrouilFan"
+    given-names: "Petrouil"
+    email: "pfanioudakis@gmail.com"
+date-released: "2026-08-05"
+version: "0.1.0-paper"
+keywords:
+  - "llama.cpp"
+  - "KV cache"
+  - "quantization"
+  - "FlashAttention"
+license: MIT
+preferred-citation:
+  type: software
+  title: "Beyond Perplexity: static mixed-precision KV cache for llama.cpp"
+  version: "0.1.0-paper"

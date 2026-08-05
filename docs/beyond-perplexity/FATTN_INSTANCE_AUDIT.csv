@@ -1,0 +1,101 @@
+k_type,v_type,required_by_production_policy,required_by_ablation,required_by_test_suite,reachable_at_runtime,action,reason_to_remain
+bf16,bf16,no,no,yes,yes,KEEP,test-backend-ops flash_attn_ext pair
+bf16,f16,no,no,no,yes,KEEP,upstream FA_ALL_QUANTS=ON grid / legacy parity (dispatch case exists)
+bf16,q2_nu,no,no,no,no,PRUNE,no dispatch case - unreachable at runtime
+bf16,q3_0,no,no,no,no,PRUNE,no dispatch case - unreachable at runtime
+bf16,q3_0_64,no,no,no,no,PRUNE,no dispatch case - unreachable at runtime
+bf16,q4_0,no,no,no,yes,KEEP,upstream FA_ALL_QUANTS=ON grid / legacy parity (dispatch case exists)
+bf16,q4_1,no,no,no,yes,KEEP,upstream FA_ALL_QUANTS=ON grid / legacy parity (dispatch case exists)
+bf16,q5_0,no,no,no,yes,KEEP,upstream FA_ALL_QUANTS=ON grid / legacy parity (dispatch case exists)
+bf16,q5_1,no,no,no,yes,KEEP,upstream FA_ALL_QUANTS=ON grid / legacy parity (dispatch case exists)
+bf16,q8_0,no,no,no,yes,KEEP,upstream FA_ALL_QUANTS=ON grid / legacy parity (dispatch case exists)
+f16,bf16,no,no,no,yes,KEEP,upstream FA_ALL_QUANTS=ON grid / legacy parity (dispatch case exists)
+f16,f16,no,no,yes,yes,KEEP,test-backend-ops flash_attn_ext pair
+f16,q2_nu,no,no,no,yes,KEEP,upstream FA_ALL_QUANTS=ON grid / legacy parity (dispatch case exists)
+f16,q3_0,no,no,no,yes,KEEP,upstream FA_ALL_QUANTS=ON grid / legacy parity (dispatch case exists)
+f16,q3_0_64,no,no,no,yes,KEEP,upstream FA_ALL_QUANTS=ON grid / legacy parity (dispatch case exists)
+f16,q4_0,no,no,yes,yes,KEEP,test-backend-ops flash_attn_ext pair
+f16,q4_1,no,no,no,yes,KEEP,upstream FA_ALL_QUANTS=ON grid / legacy parity (dispatch case exists)
+f16,q5_0,no,no,no,yes,KEEP,upstream FA_ALL_QUANTS=ON grid / legacy parity (dispatch case exists)
+f16,q5_1,no,no,no,yes,KEEP,upstream FA_ALL_QUANTS=ON grid / legacy parity (dispatch case exists)
+f16,q8_0,no,no,no,yes,KEEP,upstream FA_ALL_QUANTS=ON grid / legacy parity (dispatch case exists)
+q2_nu,bf16,no,no,no,no,PRUNE,no dispatch case - unreachable at runtime
+q2_nu,f16,no,no,no,yes,KEEP,upstream FA_ALL_QUANTS=ON grid / legacy parity (dispatch case exists)
+q2_nu,q2_nu,no,no,no,yes,KEEP,upstream FA_ALL_QUANTS=ON grid / legacy parity (dispatch case exists)
+q2_nu,q3_0,no,no,no,no,PRUNE,no dispatch case - unreachable at runtime
+q2_nu,q3_0_64,no,no,no,yes,KEEP,upstream FA_ALL_QUANTS=ON grid / legacy parity (dispatch case exists)
+q2_nu,q4_0,no,no,no,no,PRUNE,no dispatch case - unreachable at runtime
+q2_nu,q4_1,no,no,no,no,PRUNE,no dispatch case - unreachable at runtime
+q2_nu,q5_0,no,no,no,no,PRUNE,no dispatch case - unreachable at runtime
+q2_nu,q5_1,no,no,no,no,PRUNE,no dispatch case - unreachable at runtime
+q2_nu,q8_0,no,no,no,no,PRUNE,no dispatch case - unreachable at runtime
+q3_0,bf16,no,no,no,no,PRUNE,no dispatch case - unreachable at runtime
+q3_0,f16,no,no,no,no,PRUNE,no dispatch case - unreachable at runtime
+q3_0,q2_nu,no,no,no,yes,KEEP,upstream FA_ALL_QUANTS=ON grid / legacy parity (dispatch case exists)
+q3_0,q3_0,no,no,no,yes,KEEP,upstream FA_ALL_QUANTS=ON grid / legacy parity (dispatch case exists)
+q3_0,q3_0_64,no,no,no,no,PRUNE,no dispatch case - unreachable at runtime
+q3_0,q4_0,no,no,no,yes,KEEP,upstream FA_ALL_QUANTS=ON grid / legacy parity (dispatch case exists)
+q3_0,q4_1,no,no,no,no,PRUNE,no dispatch case - unreachable at runtime
+q3_0,q5_0,no,no,no,no,PRUNE,no dispatch case - unreachable at runtime
+q3_0,q5_1,no,no,no,no,PRUNE,no dispatch case - unreachable at runtime
+q3_0,q8_0,no,no,no,yes,KEEP,upstream FA_ALL_QUANTS=ON grid / legacy parity (dispatch case exists)
+q3_0_64,bf16,no,no,no,no,PRUNE,no dispatch case - unreachable at runtime
+q3_0_64,f16,no,no,no,yes,KEEP,upstream FA_ALL_QUANTS=ON grid / legacy parity (dispatch case exists)
+q3_0_64,q2_nu,no,yes,no,no,PRUNE,no dispatch case - unreachable at runtime
+q3_0_64,q3_0,no,no,no,no,PRUNE,no dispatch case - unreachable at runtime
+q3_0_64,q3_0_64,no,yes,no,yes,KEEP,paper production policy and/or ablation FA pair
+q3_0_64,q4_0,no,yes,no,no,PRUNE,no dispatch case - unreachable at runtime
+q3_0_64,q4_1,no,no,no,no,PRUNE,no dispatch case - unreachable at runtime
+q3_0_64,q5_0,no,no,no,no,PRUNE,no dispatch case - unreachable at runtime
+q3_0_64,q5_1,no,no,no,no,PRUNE,no dispatch case - unreachable at runtime
+q3_0_64,q8_0,no,no,no,no,PRUNE,no dispatch case - unreachable at runtime
+q4_0,bf16,no,no,no,yes,KEEP,upstream FA_ALL_QUANTS=ON grid / legacy parity (dispatch case exists)
+q4_0,f16,no,no,yes,yes,KEEP,test-backend-ops flash_attn_ext pair
+q4_0,q2_nu,yes,yes,no,yes,KEEP,paper production policy and/or ablation FA pair
+q4_0,q3_0,no,no,no,yes,KEEP,upstream FA_ALL_QUANTS=ON grid / legacy parity (dispatch case exists)
+q4_0,q3_0_64,yes,yes,no,yes,KEEP,paper production policy and/or ablation FA pair
+q4_0,q4_0,yes,yes,yes,yes,KEEP,paper production policy and/or ablation FA pair
+q4_0,q4_1,no,no,no,yes,KEEP,upstream FA_ALL_QUANTS=ON grid / legacy parity (dispatch case exists)
+q4_0,q5_0,no,no,no,yes,KEEP,upstream FA_ALL_QUANTS=ON grid / legacy parity (dispatch case exists)
+q4_0,q5_1,no,no,no,yes,KEEP,upstream FA_ALL_QUANTS=ON grid / legacy parity (dispatch case exists)
+q4_0,q8_0,no,no,yes,yes,KEEP,test-backend-ops flash_attn_ext pair
+q4_1,bf16,no,no,no,yes,KEEP,upstream FA_ALL_QUANTS=ON grid / legacy parity (dispatch case exists)
+q4_1,f16,no,no,no,yes,KEEP,upstream FA_ALL_QUANTS=ON grid / legacy parity (dispatch case exists)
+q4_1,q2_nu,no,no,no,no,PRUNE,no dispatch case - unreachable at runtime
+q4_1,q3_0,no,no,no,no,PRUNE,no dispatch case - unreachable at runtime
+q4_1,q3_0_64,no,no,no,no,PRUNE,no dispatch case - unreachable at runtime
+q4_1,q4_0,no,no,no,yes,KEEP,upstream FA_ALL_QUANTS=ON grid / legacy parity (dispatch case exists)
+q4_1,q4_1,no,no,yes,yes,KEEP,test-backend-ops flash_attn_ext pair
+q4_1,q5_0,no,no,no,yes,KEEP,upstream FA_ALL_QUANTS=ON grid / legacy parity (dispatch case exists)
+q4_1,q5_1,no,no,no,yes,KEEP,upstream FA_ALL_QUANTS=ON grid / legacy parity (dispatch case exists)
+q4_1,q8_0,no,no,no,yes,KEEP,upstream FA_ALL_QUANTS=ON grid / legacy parity (dispatch case exists)
+q5_0,bf16,no,no,no,yes,KEEP,upstream FA_ALL_QUANTS=ON grid / legacy parity (dispatch case exists)
+q5_0,f16,no,no,no,yes,KEEP,upstream FA_ALL_QUANTS=ON grid / legacy parity (dispatch case exists)
+q5_0,q2_nu,no,no,no,no,PRUNE,no dispatch case - unreachable at runtime
+q5_0,q3_0,no,no,no,no,PRUNE,no dispatch case - unreachable at runtime
+q5_0,q3_0_64,no,no,no,no,PRUNE,no dispatch case - unreachable at runtime
+q5_0,q4_0,no,no,no,yes,KEEP,upstream FA_ALL_QUANTS=ON grid / legacy parity (dispatch case exists)
+q5_0,q4_1,no,no,no,yes,KEEP,upstream FA_ALL_QUANTS=ON grid / legacy parity (dispatch case exists)
+q5_0,q5_0,no,no,yes,yes,KEEP,test-backend-ops flash_attn_ext pair
+q5_0,q5_1,no,no,no,yes,KEEP,upstream FA_ALL_QUANTS=ON grid / legacy parity (dispatch case exists)
+q5_0,q8_0,no,no,no,yes,KEEP,upstream FA_ALL_QUANTS=ON grid / legacy parity (dispatch case exists)
+q5_1,bf16,no,no,no,yes,KEEP,upstream FA_ALL_QUANTS=ON grid / legacy parity (dispatch case exists)
+q5_1,f16,no,no,no,yes,KEEP,upstream FA_ALL_QUANTS=ON grid / legacy parity (dispatch case exists)
+q5_1,q2_nu,no,no,no,no,PRUNE,no dispatch case - unreachable at runtime
+q5_1,q3_0,no,no,no,no,PRUNE,no dispatch case - unreachable at runtime
+q5_1,q3_0_64,no,no,no,no,PRUNE,no dispatch case - unreachable at runtime
+q5_1,q4_0,no,no,no,yes,KEEP,upstream FA_ALL_QUANTS=ON grid / legacy parity (dispatch case exists)
+q5_1,q4_1,no,no,no,yes,KEEP,upstream FA_ALL_QUANTS=ON grid / legacy parity (dispatch case exists)
+q5_1,q5_0,no,no,no,yes,KEEP,upstream FA_ALL_QUANTS=ON grid / legacy parity (dispatch case exists)
+q5_1,q5_1,no,no,yes,yes,KEEP,test-backend-ops flash_attn_ext pair
+q5_1,q8_0,no,no,no,yes,KEEP,upstream FA_ALL_QUANTS=ON grid / legacy parity (dispatch case exists)
+q8_0,bf16,no,no,no,yes,KEEP,upstream FA_ALL_QUANTS=ON grid / legacy parity (dispatch case exists)
+q8_0,f16,no,no,no,yes,KEEP,upstream FA_ALL_QUANTS=ON grid / legacy parity (dispatch case exists)
+q8_0,q2_nu,no,no,no,yes,KEEP,upstream FA_ALL_QUANTS=ON grid / legacy parity (dispatch case exists)
+q8_0,q3_0,no,no,no,yes,KEEP,upstream FA_ALL_QUANTS=ON grid / legacy parity (dispatch case exists)
+q8_0,q3_0_64,no,no,no,yes,KEEP,upstream FA_ALL_QUANTS=ON grid / legacy parity (dispatch case exists)
+q8_0,q4_0,no,yes,yes,yes,KEEP,paper production policy and/or ablation FA pair
+q8_0,q4_1,no,no,no,yes,KEEP,upstream FA_ALL_QUANTS=ON grid / legacy parity (dispatch case exists)
+q8_0,q5_0,no,no,no,yes,KEEP,upstream FA_ALL_QUANTS=ON grid / legacy parity (dispatch case exists)
+q8_0,q5_1,no,no,no,yes,KEEP,upstream FA_ALL_QUANTS=ON grid / legacy parity (dispatch case exists)
+q8_0,q8_0,yes,yes,yes,yes,KEEP,paper production policy and/or ablation FA pair

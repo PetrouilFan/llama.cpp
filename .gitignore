@@ -153,3 +153,6 @@ a.out.*
 
 AGENTS.local.md
 .pi/SYSTEM.md
+
+# beyond-perplexity: raw full-release outputs (not committed; summary only)
+/artifacts/beyond-perplexity/full_release/

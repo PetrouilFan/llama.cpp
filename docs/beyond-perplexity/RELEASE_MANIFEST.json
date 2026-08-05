@@ -1,0 +1,113 @@
+{
+  "release": "beyond-perplexity-v0.1.0-paper",
+  "date": "2026-08-05",
+  "upstream_base_commit": "e031d956797f9a10f704fa523fe5fd9b72e9015c",
+  "feature_head_commit": "PENDING_RELEASE",
+  "tag": "beyond-perplexity-v0.1.0-paper",
+  "model": {
+    "name": "Qwen3-4B-Instruct Q4_K_M",
+    "sha256": "7485fe6f11af29433bc51cab58009521f205840f5b4ae3a32fa7f92e8534fdf5",
+    "architecture": "qwen3",
+    "n_layers": 36,
+    "n_kv_heads": 8,
+    "head_dim": 128
+  },
+  "formats": {
+    "q2_nu": {
+      "values_per_block": 64,
+      "bytes_per_block": 18,
+      "bytes_per_element": 0.28125,
+      "codebook_sha256": "af450f1aec81b9a23e346640e27ab3150f5a9827b424750eda61d4104dea6713"
+    },
+    "q3_0": {
+      "values_per_block": 32,
+      "bytes_per_block": 14,
+      "bytes_per_element": 0.4375
+    },
+    "q3_0_64": {
+      "values_per_block": 64,
+      "bytes_per_block": 26,
+      "bytes_per_element": 0.40625
+    }
+  },
+  "production_policies": {
+    "q4k_q4v": {
+      "file": "examples/kv-cache-policies/q4xq4.json",
+      "policy_sha256": "717ff660a5c089c053486431e1d981dc8e207b3ed8c314cae407f9bc8e7f9bbe",
+      "bytes_per_token": 41472
+    },
+    "q4k_q3v": {
+      "file": "examples/kv-cache-policies/q4xq3_64.json",
+      "policy_sha256": "3c24b621fd9fd95e6b45e8489da3c6e34a65515702a508ff9dc07df253045931",
+      "bytes_per_token": 35712
+    },
+    "c2": {
+      "file": "examples/kv-cache-policies/c2.json",
+      "policy_sha256": "88e3b00a06de6fa934974bc0ee609e592a80622403b2fa2f3f91a0badb110444",
+      "bytes_per_token": 32768
+    },
+    "q4k_all_nuq2v": {
+      "file": "examples/kv-cache-policies/allq2_nu.json",
+      "policy_sha256": "7e7c054b8a137f3f6ef946392b508acc7a8d9bbb1980b9fda380ed1b8c5a2282",
+      "bytes_per_token": 31104
+    }
+  },
+  "binary_hashes": {
+    "llama-cli": "cf29696f38b771a984037f8e417530c51562335a34574b4b529e8f6deebd4db6",
+    "llama-server": "59150a181708d43037ec90737d8625b691c68a8aec82f290cc9c8f43cebaaf76",
+    "llama-perplexity": "e2c40afca435fa4799aba1aa93922fdfdd7305f49ab02bb318d97b78e095fb03"
+  },
+  "artifacts": {
+    "runtime_policy_audit": "artifacts/beyond-perplexity/runtime_policy_audit.json",
+    "runtime_smoke": "artifacts/beyond-perplexity/runtime_smoke/",
+    "equivalence_smoke": "artifacts/beyond-perplexity/equivalence_smoke/",
+    "systems": "artifacts/beyond-perplexity/systems/",
+    "equivalence_summary": "artifacts/beyond-perplexity/equivalence_summary.json"
+  },
+  "docs": [
+    "docs/beyond-perplexity/README.md",
+    "docs/beyond-perplexity/DESIGN.md",
+    "docs/beyond-perplexity/POLICY_SCHEMA.md",
+    "docs/beyond-perplexity/POLICY_RUNTIME_VERIFICATION.md",
+    "docs/beyond-perplexity/REPRODUCING_THE_PAPER.md",
+    "docs/beyond-perplexity/CORRECTNESS_REPORT.md",
+    "docs/beyond-perplexity/EQUIVALENCE_SMOKE_REPORT.md",
+    "docs/beyond-perplexity/EQUIVALENCE_REPORT.md",
+    "docs/beyond-perplexity/SYSTEMS_EQUIVALENCE_REPORT.md",
+    "docs/beyond-perplexity/COMPUTE_SANITIZER_REPORT.md",
+    "docs/beyond-perplexity/RUNTIME_SMOKE_REPORT.md",
+    "docs/beyond-perplexity/NUQ2_LEGACY_DEVIATION.md",
+    "docs/beyond-perplexity/Q3_COPY_FIX.md",
+    "docs/beyond-perplexity/FATTN_INSTANCE_AUDIT.md",
+    "docs/beyond-perplexity/LIMITATIONS.md"
+  ],
+  "tests": [
+    "tests/test-beyond-perplexity-quants.cpp",
+    "tests/test-kv-cache-policy.cpp",
+    "tests/beyond-perplexity/reference/q2_nu_vectors.json",
+    "tests/beyond-perplexity/reference/q2_uniform_vectors.json",
+    "tests/beyond-perplexity/reference/q3_0_vectors.json",
+    "tests/beyond-perplexity/reference/q3_0_64_vectors.json",
+    "tests/beyond-perplexity/reference/policies/q4xq4.json",
+    "tests/beyond-perplexity/reference/policies/q4xq3_64.json",
+    "tests/beyond-perplexity/reference/policies/c2.json",
+    "tests/beyond-perplexity/reference/policies/28q2_8q4.json"
+  ],
+  "not_committed": [
+    "model GGUF files",
+    "frozen corpus splits (final_test_wiki/owt.txt)",
+    "build directories",
+    "raw full outputs",
+    "CUDA profiler traces",
+    "legacy repository bundle"
+  ],
+  "gate_results": {
+    "policy_runtime_verification": "PASS",
+    "runtime_smoke": "PASS",
+    "compute_sanitizer": "PASS (0 errors, 7 runs)",
+    "equivalence_smoke_gate": "PASS (|delta| = 0.000000 <= 0.002)",
+    "systems_equivalence": "PASS (C2 decode overhead -2.38%/-3.39%/-2.82% at 4K/16K/32K; 64K decode N/A due to upstream n_ctx_train slot cap, documented)",
+    "full_equivalence": "PASS (full PPL + GSM8K-1319 all match paper exactly: PPL 12.2919/18.4667/12.3452/18.5276/12.2435/18.3585; GSM8K 0.6543/0.6710/0.6262)"
+  },
+  "gates_pending": []
+}

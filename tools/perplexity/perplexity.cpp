@@ -415,6 +415,9 @@ static results_perplexity perplexity_v2(llama_context * ctx, const common_params
             LOG("%.2f minutes\n", total_seconds / 60.0);
         }
 
+        const double nll_chunk_before = nll;
+        const int    count_chunk_before = count;
+
         //LOG_DBG("%s: using tokens %d...%d\n",__func__,params.n_ctx - params.ppl_stride + start, params.n_ctx + start);
         for (int j = n_ctx - params.ppl_stride - 1; j < n_ctx - 1; ++j) {
             // Calculate probability of next token, given the previous ones.
@@ -430,7 +433,12 @@ static results_perplexity perplexity_v2(llama_context * ctx, const common_params
             ++count;
         }
         // perplexity is e^(average negative log-likelihood)
-        if (params.ppl_output_type == 0) {
+        if (params.ppl_output_type == 2) {
+            const double nll_chunk = nll - nll_chunk_before;
+            const int    cnt_chunk = count - count_chunk_before;
+            LOG("NLL[%d] sum=%.6lf count=%d mean=%.6lf ppl=%.6lf\n",
+                    i + 1, nll_chunk, cnt_chunk, nll_chunk/cnt_chunk, std::exp(nll_chunk/cnt_chunk));
+        } else if (params.ppl_output_type == 0) {
             LOG("[%d]%.4lf,", i + 1, std::exp(nll / count));
         } else {
             LOG("%8d  %.4lf\n", i*params.ppl_stride, std::exp(nll / count));
@@ -612,6 +620,7 @@ static results_perplexity perplexity(llama_context * ctx, const common_params & 
         }
 
         for (int seq = 0; seq < n_seq_batch; seq++) {
+            const double nll_chunk_before = nll;
             const float * all_logits = num_batches > 1 ? logits.data() : llama_get_logits_ith(ctx, seq*n_ctx + first);
 
             llama_token * tokens_data = tokens.data() + start + seq*n_ctx + first;
@@ -626,10 +635,15 @@ static results_perplexity perplexity(llama_context * ctx, const common_params & 
                         logit_history.data() + start + seq*n_ctx + first,
                         prob_history.data()  + start + seq*n_ctx + first);
             }
-            count += n_ctx - first - 1;
+            const int cnt_chunk = n_ctx - first - 1;
+            count += cnt_chunk;
 
             // perplexity is e^(average negative log-likelihood)
-            if (params.ppl_output_type == 0) {
+            if (params.ppl_output_type == 2) {
+                const double nll_chunk = nll - nll_chunk_before;
+                LOG("NLL[%d] sum=%.6lf count=%d mean=%.6lf ppl=%.6lf\n",
+                        i + seq + 1, nll_chunk, cnt_chunk, nll_chunk/cnt_chunk, std::exp(nll_chunk/cnt_chunk));
+            } else if (params.ppl_output_type == 0) {
                 LOG("[%d]%.4lf,", i + seq + 1, std::exp(nll / count));
             } else {
                 double av = nll/count;

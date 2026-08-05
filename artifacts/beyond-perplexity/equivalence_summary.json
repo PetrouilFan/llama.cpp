@@ -1,0 +1,63 @@
+{
+  "release": "beyond-perplexity-v0.1.0-paper",
+  "model": {
+    "file": "Qwen3-4B-Instruct Q4_K_M",
+    "sha256": "7485fe6f11af29433bc51cab58009521f205840f5b4ae3a32fa7f92e8534fdf5",
+    "architecture": "qwen3",
+    "n_layers": 36,
+    "n_kv_heads": 8,
+    "head_dim": 128
+  },
+  "gates": {
+    "policy_runtime_verification": "PASS",
+    "runtime_smoke": "PASS",
+    "compute_sanitizer": "PASS (zero errors, 7 runs)",
+    "equivalence_smoke": "PASS (clean-legacy policy-effect difference 0.000000, gate <= 0.002)",
+    "systems": "PASS (C2 decode overhead -2.38%/-3.39%/-2.82% at 4K/16K/32K; gate <= 4%; 64K decode N/A upstream slot cap)",
+    "full_equivalence": "PASS (all full PPL and GSM8K-1319 cells match paper exactly)"
+  },
+  "full_release": {
+    "held_out_ppl_ctx4096": [
+      {"policy": "q4xq4", "corpus": "wiki", "clean": 12.2919, "paper": 12.2919, "diff": 0.0},
+      {"policy": "q4xq4", "corpus": "owt", "clean": 18.4667, "paper": 18.4667, "diff": 0.0},
+      {"policy": "q4xq3_64", "corpus": "wiki", "clean": 12.3452, "paper": 12.3452, "diff": 0.0},
+      {"policy": "q4xq3_64", "corpus": "owt", "clean": 18.5276, "paper": 18.5276, "diff": 0.0},
+      {"policy": "c2", "corpus": "wiki", "clean": 12.2435, "paper": 12.2435, "diff": 0.0},
+      {"policy": "c2", "corpus": "owt", "clean": 18.3585, "paper": 18.3585, "diff": 0.0}
+    ],
+    "gsm8k_1319_strict": [
+      {"policy": "q4xq4", "clean": 0.6542835481425322, "paper": 0.6543, "diff": 0.0},
+      {"policy": "q4xq3_64", "clean": 0.6709628506444276, "paper": 0.671, "diff": 0.0},
+      {"policy": "c2", "clean": 0.6262319939347991, "paper": 0.6262, "diff": 0.0}
+    ]
+  },
+  "equivalence_smoke": {
+    "per_chunk_nll_64chunks_ctx2047": {
+      "clean_equals_legacy": true,
+      "max_per_chunk_mean_diff": 0.0,
+      "gate_clean_minus_legacy_policy_effect": 0.0,
+      "gate_threshold": 0.002
+    },
+    "gsm8k_200_strict": {
+      "q4xq4": {"legacy": 0.645, "clean": 0.645},
+      "q4xq3_64": {"legacy": 0.685, "clean": 0.685},
+      "c2": {"legacy": 0.61, "clean": 0.61}
+    }
+  },
+  "systems": {
+    "decode_tps_median": {
+      "q4xq4": {"4096": 84.0, "16384": 50.1, "32768": 31.9},
+      "c2": {"4096": 82.0, "16384": 48.4, "32768": 31.0}
+    },
+    "c2_decode_overhead_pct": {"4096": -2.38, "16384": -3.39, "32768": -2.82},
+    "vram_64k_mib": {"q4xq4": 5674, "q4xq3_64": 5170, "c2": 4986},
+    "notes": "64K decode not measurable: upstream server-context.cpp caps slots at n_ctx_train=40960 (commit ab49f094d2, in pinned base e031d9567)"
+  },
+  "nu_vs_uniform_q2": {
+    "source": "frozen paper measurements (uniform q2_0 KV not expressible in clean CUDA runtime)",
+    "gsm8k_1319_strict": {"allq2_nu": 58.53, "allq2_uniform": 31.01},
+    "mbpp": {"allq2_nu": 48.0, "allq2_uniform": 30.8},
+    "truthfulqa_bleu": {"allq2_nu": 11.1249, "allq2_uniform": 7.7857},
+    "llama32_1b_heldout_ppl": {"uniform_q2_all_v": [13.0153, 19.0996], "q4xq4_baseline": [11.8001, 17.3042]}
+  }
+}

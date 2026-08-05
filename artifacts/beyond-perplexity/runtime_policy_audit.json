@@ -1,0 +1,317 @@
+{
+  "model": {
+    "path": "/home/petrouil/Projects/llama.cpp_tests/kv_compressions/models/Qwen3-4B-Q4_K_M.gguf",
+    "sha256": "7485fe6f11af29433bc51cab58009521f205840f5b4ae3a32fa7f92e8534fdf5",
+    "architecture": "qwen3",
+    "n_layers": 36,
+    "n_head_kv": 8,
+    "n_embd_head_k": 128
+  },
+  "implemented_nu_codebook_sha256": "af450f1aec81b9a23e346640e27ab3150f5a9827b424750eda61d4104dea6713",
+  "expected_bytes_per_token": {
+    "q4k_q4v": 41472,
+    "q4k_q3v": 35712,
+    "c2": 32768,
+    "q4k_all_nu_q2": 31104
+  },
+  "policies": {
+    "q4xq4": {
+      "policy_id": "qwen3-4b-q4xq4-v1",
+      "policy_sha256": "717ff660a5c089c053486431e1d981dc8e207b3ed8c314cae407f9bc8e7f9bbe",
+      "method": "nu-q2-mixed-v",
+      "model_sha256": "7485fe6f11af29433bc51cab58009521f205840f5b4ae3a32fa7f92e8534fdf5",
+      "model_sha256_matches_file": true,
+      "codebook_sha256": "af450f1aec81b9a23e346640e27ab3150f5a9827b424750eda61d4104dea6713",
+      "codebook_sha256_matches_implemented": true,
+      "architecture": "qwen3",
+      "n_layers": 36,
+      "n_kv_heads_declared": 8,
+      "head_dim_declared": 128,
+      "k_type": "q4_0",
+      "v_layer_types": [
+        "q4_0",
+        "q4_0",
+        "q4_0",
+        "q4_0",
+        "q4_0",
+        "q4_0",
+        "q4_0",
+        "q4_0",
+        "q4_0",
+        "q4_0",
+        "q4_0",
+        "q4_0",
+        "q4_0",
+        "q4_0",
+        "q4_0",
+        "q4_0",
+        "q4_0",
+        "q4_0",
+        "q4_0",
+        "q4_0",
+        "q4_0",
+        "q4_0",
+        "q4_0",
+        "q4_0",
+        "q4_0",
+        "q4_0",
+        "q4_0",
+        "q4_0",
+        "q4_0",
+        "q4_0",
+        "q4_0",
+        "q4_0",
+        "q4_0",
+        "q4_0",
+        "q4_0",
+        "q4_0"
+      ],
+      "type_counts": {
+        "k": {
+          "q4_0": 36
+        },
+        "v": {
+          "q4_0": 36
+        }
+      },
+      "analytical_bytes_per_token": {
+        "k": 20736.0,
+        "v": 20736.0,
+        "total": 41472.0
+      },
+      "runtime_evidence": {
+        "kv_buffer_mib": 81.0,
+        "k_mib": 40.5,
+        "v_mib": 40.5,
+        "cells": 2048,
+        "bytes_per_token_from_runtime": 41472.0,
+        "flash_attention": "enabled (resolve_fused_ops)",
+        "kv_cache_policy_log": "k=q4_0x36 v=q4_0x36"
+      }
+    },
+    "q4xq3_64": {
+      "policy_id": "qwen3-4b-q4xq3_64-v1",
+      "policy_sha256": "3c24b621fd9fd95e6b45e8489da3c6e34a65515702a508ff9dc07df253045931",
+      "method": "nu-q2-mixed-v",
+      "model_sha256": "7485fe6f11af29433bc51cab58009521f205840f5b4ae3a32fa7f92e8534fdf5",
+      "model_sha256_matches_file": true,
+      "codebook_sha256": "af450f1aec81b9a23e346640e27ab3150f5a9827b424750eda61d4104dea6713",
+      "codebook_sha256_matches_implemented": true,
+      "architecture": "qwen3",
+      "n_layers": 36,
+      "n_kv_heads_declared": 8,
+      "head_dim_declared": 128,
+      "k_type": "q4_0",
+      "v_layer_types": [
+        "q3_0_64",
+        "q3_0_64",
+        "q3_0_64",
+        "q3_0_64",
+        "q3_0_64",
+        "q3_0_64",
+        "q3_0_64",
+        "q3_0_64",
+        "q3_0_64",
+        "q3_0_64",
+        "q3_0_64",
+        "q3_0_64",
+        "q3_0_64",
+        "q3_0_64",
+        "q3_0_64",
+        "q3_0_64",
+        "q3_0_64",
+        "q3_0_64",
+        "q3_0_64",
+        "q3_0_64",
+        "q3_0_64",
+        "q3_0_64",
+        "q3_0_64",
+        "q3_0_64",
+        "q3_0_64",
+        "q3_0_64",
+        "q3_0_64",
+        "q3_0_64",
+        "q3_0_64",
+        "q3_0_64",
+        "q3_0_64",
+        "q3_0_64",
+        "q3_0_64",
+        "q3_0_64",
+        "q3_0_64",
+        "q3_0_64"
+      ],
+      "type_counts": {
+        "k": {
+          "q4_0": 36
+        },
+        "v": {
+          "q3_0_64": 36
+        }
+      },
+      "analytical_bytes_per_token": {
+        "k": 20736.0,
+        "v": 14976.0,
+        "total": 35712.0
+      },
+      "runtime_evidence": {
+        "kv_buffer_mib": 69.75,
+        "k_mib": 40.5,
+        "v_mib": 29.25,
+        "cells": 2048,
+        "bytes_per_token_from_runtime": 35712.0,
+        "flash_attention": "enabled (resolve_fused_ops)",
+        "kv_cache_policy_log": "k=q4_0x36 v=q3_0_64x36"
+      }
+    },
+    "c2": {
+      "policy_id": "qwen3-4b-c2-v1",
+      "policy_sha256": "88e3b00a06de6fa934974bc0ee609e592a80622403b2fa2f3f91a0badb110444",
+      "method": "nu-q2-mixed-v",
+      "model_sha256": "7485fe6f11af29433bc51cab58009521f205840f5b4ae3a32fa7f92e8534fdf5",
+      "model_sha256_matches_file": true,
+      "codebook_sha256": "af450f1aec81b9a23e346640e27ab3150f5a9827b424750eda61d4104dea6713",
+      "codebook_sha256_matches_implemented": true,
+      "architecture": "qwen3",
+      "n_layers": 36,
+      "n_kv_heads_declared": 8,
+      "head_dim_declared": 128,
+      "k_type": "q4_0",
+      "v_layer_types": [
+        "q4_0",
+        "q2_nu",
+        "q2_nu",
+        "q2_nu",
+        "q2_nu",
+        "q2_nu",
+        "q2_nu",
+        "q4_0",
+        "q2_nu",
+        "q3_0_64",
+        "q2_nu",
+        "q2_nu",
+        "q2_nu",
+        "q2_nu",
+        "q3_0_64",
+        "q2_nu",
+        "q3_0_64",
+        "q2_nu",
+        "q2_nu",
+        "q2_nu",
+        "q4_0",
+        "q2_nu",
+        "q2_nu",
+        "q4_0",
+        "q2_nu",
+        "q2_nu",
+        "q2_nu",
+        "q2_nu",
+        "q2_nu",
+        "q2_nu",
+        "q2_nu",
+        "q2_nu",
+        "q2_nu",
+        "q2_nu",
+        "q3_0_64",
+        "q2_nu"
+      ],
+      "type_counts": {
+        "k": {
+          "q4_0": 36
+        },
+        "v": {
+          "q2_nu": 28,
+          "q3_0_64": 4,
+          "q4_0": 4
+        }
+      },
+      "analytical_bytes_per_token": {
+        "k": 20736.0,
+        "v": 12032.0,
+        "total": 32768.0
+      },
+      "runtime_evidence": {
+        "kv_buffer_mib": 64.0,
+        "k_mib": 40.5,
+        "v_mib": 23.5,
+        "cells": 2048,
+        "bytes_per_token_from_runtime": 32768.0,
+        "flash_attention": "enabled (resolve_fused_ops)",
+        "kv_cache_policy_log": "k=q4_0x36 v=q4_0,q2_nux6,q4_0,q2_nu,q3_0_64,q2_nux4,q3_0_64,q2_nu,q3_0_64,q2_nux3,q4_0,q2_nux2,q4_0,q2_nux10,q3_0_64,q2_nu"
+      }
+    },
+    "allq2_nu": {
+      "policy_id": "qwen3-4b-allq2_nu-v1",
+      "policy_sha256": "7e7c054b8a137f3f6ef946392b508acc7a8d9bbb1980b9fda380ed1b8c5a2282",
+      "method": "nu-q2",
+      "model_sha256": "7485fe6f11af29433bc51cab58009521f205840f5b4ae3a32fa7f92e8534fdf5",
+      "model_sha256_matches_file": true,
+      "codebook_sha256": "af450f1aec81b9a23e346640e27ab3150f5a9827b424750eda61d4104dea6713",
+      "codebook_sha256_matches_implemented": true,
+      "architecture": "qwen3",
+      "n_layers": 36,
+      "n_kv_heads_declared": 8,
+      "head_dim_declared": 128,
+      "k_type": "q4_0",
+      "v_layer_types": [
+        "q2_nu",
+        "q2_nu",
+        "q2_nu",
+        "q2_nu",
+        "q2_nu",
+        "q2_nu",
+        "q2_nu",
+        "q2_nu",
+        "q2_nu",
+        "q2_nu",
+        "q2_nu",
+        "q2_nu",
+        "q2_nu",
+        "q2_nu",
+        "q2_nu",
+        "q2_nu",
+        "q2_nu",
+        "q2_nu",
+        "q2_nu",
+        "q2_nu",
+        "q2_nu",
+        "q2_nu",
+        "q2_nu",
+        "q2_nu",
+        "q2_nu",
+        "q2_nu",
+        "q2_nu",
+        "q2_nu",
+        "q2_nu",
+        "q2_nu",
+        "q2_nu",
+        "q2_nu",
+        "q2_nu",
+        "q2_nu",
+        "q2_nu",
+        "q2_nu"
+      ],
+      "type_counts": {
+        "k": {
+          "q4_0": 36
+        },
+        "v": {
+          "q2_nu": 36
+        }
+      },
+      "analytical_bytes_per_token": {
+        "k": 20736.0,
+        "v": 10368.0,
+        "total": 31104.0
+      },
+      "runtime_evidence": {
+        "kv_buffer_mib": 60.75,
+        "k_mib": 40.5,
+        "v_mib": 20.25,
+        "cells": 2048,
+        "bytes_per_token_from_runtime": 31104.0,
+        "flash_attention": "enabled (resolve_fused_ops)",
+        "kv_cache_policy_log": "k=q4_0x36 v=q2_nux36"
+      }
+    }
+  }
+}

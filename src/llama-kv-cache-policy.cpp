@@ -190,6 +190,26 @@ struct llama_kv_cache_policy * llama_kv_cache_policy_parse(const char * json_str
     policy->sha256 = sha256;
     policy->summary = build_summary(policy->type_k, policy->type_v);
 
+    // optional metadata, kept for apply-time validation against the model
+    if (j.contains("policy_id") && j["policy_id"].is_string()) {
+        policy->policy_id = j["policy_id"].get<std::string>();
+    }
+    if (j.contains("architecture") && j["architecture"].is_string()) {
+        policy->architecture = j["architecture"].get<std::string>();
+    }
+    if (j.contains("model_sha256") && j["model_sha256"].is_string()) {
+        policy->model_sha256 = j["model_sha256"].get<std::string>();
+    }
+    if (j.contains("codebook_sha256") && j["codebook_sha256"].is_string()) {
+        policy->codebook_sha256 = j["codebook_sha256"].get<std::string>();
+    }
+    if (j.contains("n_kv_heads")) {
+        policy->n_kv_heads = j["n_kv_heads"].get<uint32_t>();
+    }
+    if (j.contains("head_dim")) {
+        policy->head_dim = j["head_dim"].get<uint32_t>();
+    }
+
     return policy;
 }
 

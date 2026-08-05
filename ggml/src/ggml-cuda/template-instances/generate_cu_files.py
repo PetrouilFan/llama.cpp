@@ -70,10 +70,50 @@ for head_size_kq in HEAD_SIZES_KQ:
     with open(f"fattn-tile-instance-dkq{head_size_kq}-dv{head_size_v}.cu", "w") as f:
         f.write(SOURCE_FATTN_TILE.format(head_size_kq=head_size_kq, head_size_v=head_size_v))
 
-for type_k in TYPES_KV:
-    for type_v in TYPES_KV:
-        with open(f"fattn-vec-instance-{get_short_name(type_k)}-{get_short_name(type_v)}.cu", "w") as f:
-            f.write(SOURCE_FATTN_VEC.format(type_k=type_k, type_v=type_v))
+# per-K possible V types mirroring the FATTN_VEC_CASES_ALL_D dispatch switch in
+# ggml-cuda/fattn.cu (K,V) pairs; keeping only pairs the dispatch can reach
+KV_PAIRS = [
+    ("GGML_TYPE_F16", "GGML_TYPE_F16"),    ("GGML_TYPE_F16", "GGML_TYPE_Q4_0"),
+    ("GGML_TYPE_F16", "GGML_TYPE_Q4_1"),   ("GGML_TYPE_F16", "GGML_TYPE_Q5_0"),
+    ("GGML_TYPE_F16", "GGML_TYPE_Q5_1"),   ("GGML_TYPE_F16", "GGML_TYPE_Q8_0"),
+    ("GGML_TYPE_F16", "GGML_TYPE_BF16"),   ("GGML_TYPE_F16", "GGML_TYPE_Q3_0"),
+    ("GGML_TYPE_F16", "GGML_TYPE_Q3_0_64"),("GGML_TYPE_F16", "GGML_TYPE_Q2_NU"),
+    ("GGML_TYPE_Q3_0", "GGML_TYPE_Q3_0"),  ("GGML_TYPE_Q3_0", "GGML_TYPE_Q4_0"),
+    ("GGML_TYPE_Q3_0", "GGML_TYPE_Q8_0"),  ("GGML_TYPE_Q3_0", "GGML_TYPE_Q2_NU"),
+    ("GGML_TYPE_Q3_0_64", "GGML_TYPE_Q3_0_64"), ("GGML_TYPE_Q3_0_64", "GGML_TYPE_F16"),
+    ("GGML_TYPE_Q2_NU", "GGML_TYPE_Q2_NU"),("GGML_TYPE_Q2_NU", "GGML_TYPE_F16"),
+    ("GGML_TYPE_Q2_NU", "GGML_TYPE_Q3_0_64"),
+    ("GGML_TYPE_Q4_0", "GGML_TYPE_Q4_0"),  ("GGML_TYPE_Q4_0", "GGML_TYPE_F16"),
+    ("GGML_TYPE_Q4_0", "GGML_TYPE_Q4_1"),  ("GGML_TYPE_Q4_0", "GGML_TYPE_Q5_0"),
+    ("GGML_TYPE_Q4_0", "GGML_TYPE_Q5_1"),  ("GGML_TYPE_Q4_0", "GGML_TYPE_Q8_0"),
+    ("GGML_TYPE_Q4_0", "GGML_TYPE_BF16"),  ("GGML_TYPE_Q4_0", "GGML_TYPE_Q3_0"),
+    ("GGML_TYPE_Q4_0", "GGML_TYPE_Q3_0_64"),("GGML_TYPE_Q4_0", "GGML_TYPE_Q2_NU"),
+    ("GGML_TYPE_Q4_1", "GGML_TYPE_F16"),   ("GGML_TYPE_Q4_1", "GGML_TYPE_Q4_0"),
+    ("GGML_TYPE_Q4_1", "GGML_TYPE_Q4_1"),  ("GGML_TYPE_Q4_1", "GGML_TYPE_Q5_0"),
+    ("GGML_TYPE_Q4_1", "GGML_TYPE_Q5_1"),  ("GGML_TYPE_Q4_1", "GGML_TYPE_Q8_0"),
+    ("GGML_TYPE_Q4_1", "GGML_TYPE_BF16"),
+    ("GGML_TYPE_Q5_0", "GGML_TYPE_F16"),   ("GGML_TYPE_Q5_0", "GGML_TYPE_Q4_0"),
+    ("GGML_TYPE_Q5_0", "GGML_TYPE_Q4_1"),  ("GGML_TYPE_Q5_0", "GGML_TYPE_Q5_0"),
+    ("GGML_TYPE_Q5_0", "GGML_TYPE_Q5_1"),  ("GGML_TYPE_Q5_0", "GGML_TYPE_Q8_0"),
+    ("GGML_TYPE_Q5_0", "GGML_TYPE_BF16"),
+    ("GGML_TYPE_Q5_1", "GGML_TYPE_F16"),   ("GGML_TYPE_Q5_1", "GGML_TYPE_Q4_0"),
+    ("GGML_TYPE_Q5_1", "GGML_TYPE_Q4_1"),  ("GGML_TYPE_Q5_1", "GGML_TYPE_Q5_0"),
+    ("GGML_TYPE_Q5_1", "GGML_TYPE_Q5_1"),  ("GGML_TYPE_Q5_1", "GGML_TYPE_Q8_0"),
+    ("GGML_TYPE_Q5_1", "GGML_TYPE_BF16"),
+    ("GGML_TYPE_Q8_0", "GGML_TYPE_F16"),   ("GGML_TYPE_Q8_0", "GGML_TYPE_Q4_0"),
+    ("GGML_TYPE_Q8_0", "GGML_TYPE_Q4_1"),  ("GGML_TYPE_Q8_0", "GGML_TYPE_Q5_0"),
+    ("GGML_TYPE_Q8_0", "GGML_TYPE_Q5_1"),  ("GGML_TYPE_Q8_0", "GGML_TYPE_Q8_0"),
+    ("GGML_TYPE_Q8_0", "GGML_TYPE_BF16"),  ("GGML_TYPE_Q8_0", "GGML_TYPE_Q3_0"),
+    ("GGML_TYPE_Q8_0", "GGML_TYPE_Q3_0_64"),("GGML_TYPE_Q8_0", "GGML_TYPE_Q2_NU"),
+    ("GGML_TYPE_BF16", "GGML_TYPE_F16"),   ("GGML_TYPE_BF16", "GGML_TYPE_Q4_0"),
+    ("GGML_TYPE_BF16", "GGML_TYPE_Q4_1"),  ("GGML_TYPE_BF16", "GGML_TYPE_Q5_0"),
+    ("GGML_TYPE_BF16", "GGML_TYPE_Q5_1"),  ("GGML_TYPE_BF16", "GGML_TYPE_Q8_0"),
+    ("GGML_TYPE_BF16", "GGML_TYPE_BF16"),
+]
+
+for type_k, type_v in KV_PAIRS:
+    with open(f"fattn-vec-instance-{get_short_name(type_k)}-{get_short_name(type_v)}.cu", "w") as f:
+        f.write(SOURCE_FATTN_VEC.format(type_k=type_k, type_v=type_v))
 
 for ncols in [8, 16, 32, 64]:
     for ncols2 in [1, 2, 4, 8, 16, 32]:

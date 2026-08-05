@@ -2463,8 +2463,8 @@ common_params_context common_params_parser_init(common_params & params, llama_ex
         }
     ).set_examples({LLAMA_EXAMPLE_PERPLEXITY}));
     add_opt(common_arg(
-        {"--ppl-output-type"}, "<0|1>",
-        string_format("output type for perplexity calculation (default: %d)", params.ppl_output_type),
+        {"--ppl-output-type"}, "<0|1|2>",
+        string_format("output type for perplexity calculation (default: %d): 0 = cumulative PPL per chunk, 1 = num_tokens, ppl per chunk, 2 = per-chunk NLL (sum, count, mean, ppl)", params.ppl_output_type),
         [](common_params & params, int value) {
             params.ppl_output_type = value;
         }

@@ -554,6 +554,9 @@ struct llama_model {
 
     std::string name = "n/a";
 
+    // path of the model file this model was loaded from (empty for in-memory loads)
+    std::string path_model;
+
     llama_hparams hparams = {};
     llama_vocab   vocab;
 
