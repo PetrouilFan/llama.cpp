@@ -1,0 +1,9 @@
+register_backend: registered backend CPU (1 devices)
+register_device: registered device CPU (12th Gen Intel(R) Core(TM) i7-12700H)
+load_backend: failed to find ggml_backend_init in /home/petrouil/Projects/llama.cpp_tests/beyond_perplexity/build-bp-cpu-debug/bin/libggml-cpu.so
+Testing 1 devices
+
+Backend 1/1: CPU
+  Skipping CPU backend
+1/1 backends passed
+[1;32mOK[0m
