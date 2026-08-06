@@ -44,6 +44,18 @@ implementation and of the verification reported in this repository.
   required by the acceptance gates; the paper numbers remain in
   `reference/06_PAPER_IMPLEMENTATION_TARGETS.json`.
 
+## Waived gates
+
+- **Uniform-Q2 negative control (WAIVED).** The paper's negative control
+  compares NU-Q2 against uniform-Q2 at equal storage. The clean CUDA runtime
+  cannot express uniform `q2_0` KV (no SET_ROWS support, see above), so this
+  comparison is not reproducible at runtime. The release waives the gate and
+  relies on the frozen paper measurements instead: GSM8K strict 58.53 (NU) vs
+  31.01 (uniform), MBPP 48.00 vs 30.80, TruthfulQA bleu 11.1249 vs 7.7857,
+  and the llama-3.2-1b held-out PPL 13.0153/19.0996 (uniform all-V) vs
+  11.8001/17.3042 (Q4xQ4 baseline). The waiver is recorded in
+  RELEASE_MANIFEST.json (`waived_gates`).
+
 ## Repository limitations
 
 - Model files, frozen corpora, build directories, raw logs, profiler traces,

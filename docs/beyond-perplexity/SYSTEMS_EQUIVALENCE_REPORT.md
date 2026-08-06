@@ -62,13 +62,22 @@ Analytical cache bytes matched the runtime KV buffer exactly in task 2
 | 32K     | 4082  | 3902     | 3810  | 272                | 4186        | 3914     | 272          |
 | 64K     | 5674  | 5170     | 4986  | 688                | 5528        | 4984     | 544          |
 
-C2 savings against q4xq4 at 4K/16K/32K (34/136/272 MiB) match the historical
-paper savings exactly. At 64K the measured saving (688 MiB) exceeds the paper
-value (544 MiB) because the clean upstream build allocates q4xq4 146 MiB
-higher than the paper build at 64K (5674 vs 5528); c2 itself is essentially
-identical (4986 vs 4984). The 4K/16K/32K cells are 100-200 MiB below the
-paper targets, consistent with upstream allocator improvements between the
-paper base and the pinned base e031d9567.
+C2 savings against q4xq4 at 4K/16K/32K (34/136/272 MiB) match the paper
+savings exactly. The 64K cell must be read in two parts:
+
+1. Analytical KV saving. At 65,408 occupied slots it is ~542.94 MiB; at the
+   full 65,536-token context it is exactly 544 MiB. This is the figure the
+   paper reports and the number the release claims.
+2. Observed total-process VRAM difference (q4xq4 5674 vs c2 4986 MiB = 688 MiB).
+   This is a process-level RSS/VMA reading, not a KV-bytes measurement. It
+   exceeds the analytical KV saving by ~145 MiB. The excess is observed but
+   not isolated: it is not attributed to any single allocation without
+   allocator-level profiling, so the release does not claim it as KV saving.
+
+The paper build reports c2 4984 MiB at 64K; our measured 4986 MiB is
+consistent with that. The 4K/16K/32K cells are 100-200 MiB below the paper
+values, consistent with upstream allocator improvements between the paper
+base and the pinned base e031d9567.
 
 ### Prompt processing (PP) and token generation (TG) throughput (median t/s, reps 1-7)
 
@@ -89,12 +98,16 @@ MAD is small in all cells (PP 0.5-5.7, TG 0.0-0.1).
 | 16K  | -3.39%            |
 | 32K  | -2.82%            |
 
-C2 decode is slightly faster than the q4xq4 baseline at every measured
-context (fewer V bytes to read in FA). The release performance gate
+Sign convention: negative means c2 is SLOWER than q4xq4 (e.g. 84.0 vs 82.0
+t/s at 4K = -2.38%).
+
+C2 decode is slightly slower than the q4xq4 baseline at every measured
+context (2.4-3.4% overhead, consistent with the smaller value layout
+costing more decode work in FA). The release performance gate
 (no more than 4% C2 decode overhead vs clean q4xq4 at 32K and 64K) PASSES
 at 32K; at 64K the gate is not measurable because of the upstream slot cap
-documented above, and no overhead is expected from the 4K/16K/32K trend
-(c2 is consistently faster, by 2.4-3.4%).
+documented above, and the 4K/16K/32K trend (2.4-3.4% overhead) gives no
+reason to expect a violation at 64K.
 
 ## GPU conditions
 
@@ -114,6 +127,6 @@ median values in systems_summary.json).
 - C2 saves 34/136/272/688 MiB at 4K/16K/32K/64K populated contexts vs q4xq4
   (paper: 34/68/136/272/544 at 4K/8K/16K/32K/64K; note paper 8K tier is
   68 MiB, our 16K cell 136 MiB matches the same doubling).
-- Throughput gate <= 4% C2 decode overhead PASSES (c2 is faster than q4xq4
-  at all measurable contexts); 64K decode not measurable due to the
-  documented upstream slot cap.
+- Throughput gate <= 4% C2 decode overhead PASSES (c2 is slightly slower
+  than q4xq4, by 2.4-3.4% at the measurable contexts); 64K decode not
+  measurable due to the documented upstream slot cap.

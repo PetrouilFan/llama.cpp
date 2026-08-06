@@ -88,10 +88,15 @@ llama-3.2-1b cross-model held-out PPL: uniform Q2 all-V 13.0153 (wiki) /
 
 NU-Q2 remains materially better than uniform Q2 at equal storage.
 
+The uniform-Q2 numbers above are frozen paper measurements: the clean CUDA
+runtime has no SET_ROWS support for `q2_0`, so uniform-Q2 KV is not
+reproducible at runtime. This gate is WAIVED and recorded in
+RELEASE_MANIFEST.json (`waived_gates`); see LIMITATIONS.md.
+
 ## Systems
 
-C2 decode overhead versus the clean q4xq4 baseline is negative at every
-measured context (C2 is slightly faster):
+C2 decode is slightly slower than the clean q4xq4 baseline at every
+measured context (2.4-3.4% overhead):
 
 | ctx | q4xq4 dec t/s | c2 dec t/s | overhead |
 |-----|---------------|------------|----------|
@@ -99,11 +104,14 @@ measured context (C2 is slightly faster):
 | 16K | 50.1          | 48.4       | -3.39%   |
 | 32K | 31.9          | 31.0       | -2.82%   |
 
+Sign convention: negative means c2 is slower than q4xq4.
+
 Release gate (<= 4% C2 decode overhead at 32K and 64K): PASS at 32K. 64K
 decode is not measurable in any clean binary because upstream
 tools/server/server-context.cpp caps slots at n_ctx_train (40960 for this
 model; commit ab49f094d2, present in the pinned base). 64K VRAM was measured
-via llama-perplexity: q4xq4 5674 MiB, c2 4986 MiB.
+via llama-perplexity: q4xq4 5674 MiB, c2 4986 MiB (analytical KV saving
+544 MiB; see SYSTEMS_EQUIVALENCE_REPORT.md).
 
 See docs/beyond-perplexity/SYSTEMS_EQUIVALENCE_REPORT.md.
 

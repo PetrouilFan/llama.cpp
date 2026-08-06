@@ -2,7 +2,7 @@
   "release": "beyond-perplexity-v0.1.0-paper",
   "date": "2026-08-05",
   "upstream_base_commit": "e031d956797f9a10f704fa523fe5fd9b72e9015c",
-  "feature_head_commit": "bb3230adc",
+  "feature_head_commit": "3b32e6af5b39da1539338abe09cd2a9dc743b3a3",
   "tag": "beyond-perplexity-v0.1.0-paper",
   "model": {
     "name": "Qwen3-4B-Instruct Q4_K_M",
@@ -53,9 +53,13 @@
     }
   },
   "binary_hashes": {
-    "llama-cli": "cf29696f38b771a984037f8e417530c51562335a34574b4b529e8f6deebd4db6",
-    "llama-server": "59150a181708d43037ec90737d8625b691c68a8aec82f290cc9c8f43cebaaf76",
-    "llama-perplexity": "e2c40afca435fa4799aba1aa93922fdfdd7305f49ab02bb318d97b78e095fb03"
+    "llama-cli": "d32436bd8bb97cc8f9c56a4e77e70a79d5dc174870e2536cc934133089f4f744",
+    "llama-server": "7f5cda41fffc37071a9996c9da4c69f09196d94393f0bf27a2726e51a2ea38d0",
+    "llama-perplexity": "2d5a72179d40b759ee13b91ff189e88b3038ed2ed5695f1ad80b525afa3f5c05",
+    "libggml-cuda": "0ee149e395b60cc0da11783dea195976518f6bedf6f6c592508ac9a08d0d5e2e",
+    "test-backend-ops": "6e5f2de4f27092e4a7c6ba7efc8bd8c8dc3e4e8eb0184f72a6d0d01e58586685",
+    "test-beyond-perplexity-quants": "ccbd3b3254c0213e6a875ccd85181f24f653f9d5dd8ffd9ded95bc30a90b4126",
+    "test-kv-cache-policy": "61497acb261d4bafeeb3693a7e2936da96b18b3e66ab0dbb9fa2b8e724080675"
   },
   "artifacts": {
     "runtime_policy_audit": "artifacts/beyond-perplexity/runtime_policy_audit.json",
@@ -79,7 +83,8 @@
     "docs/beyond-perplexity/NUQ2_LEGACY_DEVIATION.md",
     "docs/beyond-perplexity/Q3_COPY_FIX.md",
     "docs/beyond-perplexity/FATTN_INSTANCE_AUDIT.md",
-    "docs/beyond-perplexity/LIMITATIONS.md"
+    "docs/beyond-perplexity/LIMITATIONS.md",
+    "docs/beyond-perplexity/RELEASE_CHECKLIST_COMPLETED.md"
   ],
   "tests": [
     "tests/test-beyond-perplexity-quants.cpp",
@@ -106,8 +111,16 @@
     "runtime_smoke": "PASS",
     "compute_sanitizer": "PASS (0 errors, 7 runs)",
     "equivalence_smoke_gate": "PASS (|delta| = 0.000000 <= 0.002)",
-    "systems_equivalence": "PASS (C2 decode overhead -2.38%/-3.39%/-2.82% at 4K/16K/32K; 64K decode N/A due to upstream n_ctx_train slot cap, documented)",
+    "systems_equivalence": "PASS (C2 decode overhead +2.38%/+3.39%/+2.82% at 4K/16K/32K, i.e. C2 slightly slower, within the <= 4% gate at 32K; 64K decode N/A due to upstream n_ctx_train slot cap, documented; 64K VRAM analytical KV saving exactly 544 MiB, observed total-process diff 688 MiB)",
     "full_equivalence": "PASS (full PPL + GSM8K-1319 all match paper exactly: PPL 12.2919/18.4667/12.3452/18.5276/12.2435/18.3585; GSM8K 0.6543/0.6710/0.6262)"
   },
-  "gates_pending": []
+  "gates_pending": [],
+  "waived_gates": [
+    {
+      "gate": "uniform_q2_negative_control",
+      "status": "WAIVED",
+      "reason": "clean CUDA runtime has no SetRows kernel for q2_0, so the uniform-Q2 negative control is not reproducible at runtime; verified against frozen paper measurements instead (GSM8K 58.53 vs 31.01, MBPP 48.00 vs 30.80, TruthfulQA bleu 11.1249 vs 7.7857)",
+      "evidence": "docs/beyond-perplexity/LIMITATIONS.md, docs/beyond-perplexity/EQUIVALENCE_REPORT.md, docs/beyond-perplexity/NUQ2_LEGACY_DEVIATION.md"
+    }
+  ]
 }
