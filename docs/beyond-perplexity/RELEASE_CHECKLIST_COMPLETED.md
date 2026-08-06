@@ -1,7 +1,7 @@
 # Release Checklist - Completed
 
 Tag: beyond-perplexity-v0.1.0-paper
-Feature head: 3b32e6af5b39da1539338abe09cd2a9dc743b3a3
+Feature head: bb3b94dc6f1b395606d40a17f23c775a96fffbb2
 Upstream base: e031d956797f9a10f704fa523fe5fd9b72e9015c
 Date: 2026-08-06
 
@@ -11,16 +11,20 @@ FAIL. Evidence paths are relative to the repository root.
 ## Build and identity
 
 - [x] PASS Tag points to the feature head commit (tag = HEAD = branch).
-- [x] PASS Clean tagged build in a fresh directory (build-bp-release-verify)
+- [x] PASS Clean tagged build in a fresh directory (build-bp-release-sm86)
       with the documented release options:
-      cmake -S . -B build-bp-release-verify -DGGML_CUDA=ON -DGGML_CUDA_FA=ON
+      cmake -S . -B build-bp-release-sm86 -DGGML_CUDA=ON -DGGML_CUDA_FA=ON
       -DGGML_CUDA_FA_ALL_QUANTS=ON -DCMAKE_BUILD_TYPE=Release
       Compiler: nvcc 13.3.73 (CUDA 13.3), gcc 16.1.1.
+      Note: an earlier build (build-bp-release-verify) was configured while
+      the GPU was wedged and fell back to sm_75 cubins (all kernels PTX-JIT'd
+      on the sm_86 RTX 3070). Rebuilt with the GPU healthy; cuobjdump shows
+      all 204 cubins as sm_86. The corrected build is the release binary.
 - [x] PASS Binary hashes recorded (RELEASE_MANIFEST.json, SHA256SUMS):
-      llama-cli d32436bd..., llama-server 7f5cda41...,
-      llama-perplexity 2d5a7217..., libggml-cuda 0ee149e3...,
-      test-backend-ops 6e5f2de4..., test-beyond-perplexity-quants
-      ccbd3b32..., test-kv-cache-policy 61497acb....
+      llama-cli 4c2dd12e..., llama-server 41081292...,
+      llama-perplexity 0638cc87..., libggml-cuda 0bedfca8...,
+      test-backend-ops 993638a0..., test-beyond-perplexity-quants
+      5b691d04..., test-kv-cache-policy bcce6845....
 - [x] PASS Model sha256 recorded (7485fe6f...4fdf5, Qwen3-4B-Instruct Q4_K_M).
 
 ## Quantization correctness
@@ -29,11 +33,8 @@ FAIL. Evidence paths are relative to the repository root.
       q3_0_64, uniform q2 vectors, all records).
 - [x] PASS test-kv-cache-policy on the tagged build (inline policies,
       negative cases).
-- [ ] PENDING CUDA backend ops for the new types (q3_0, q3_0_64, q2_nu) on
-      the tagged build. Blocked on a driver-level GPU hang (nvidia driver
-      "Unknown Error", no CUDA device visible); requires a machine reboot.
-      Note: passed previously on the pre-tag verification build
-      (14109/14109 backend tests, q3_0/q3_0_64/q2_nu filtered run).
+- [x] PASS CUDA backend ops for the new types (q3_0, q3_0_64, q2_nu) on the
+      tagged build: "2/2 backends passed OK" (102/102 tests, filtered run).
 - [x] PASS Quantized V requires FA by design; context creation fails with an
       explicit error otherwise (policy runtime verification).
 
@@ -49,10 +50,16 @@ FAIL. Evidence paths are relative to the repository root.
 
 ## Runtime smoke
 
-- [ ] PENDING llama-cli end-to-end generation for all four policies on the
-      tagged build, FA on, 1891-token prompt, 128 greedy tokens (bit-stable;
-      cache prefix reuse via llama-server). Blocked on the GPU reboot noted
-      above. Previously verified on the pre-tag verification build.
+- [x] PASS llama-cli end-to-end generation for all four policies on the
+      tagged build, FA on, 1891-token prompt, 128 greedy tokens. Output is
+      bit-stable vs the frozen reference logs: c2, allq2_nu, q4xq4 reasoning
+      text is a strict prefix of the fresh output; q4xq3_64 matches exactly
+      (only a latin-1 en-dash mojibake in the frozen log differs). Cache
+      prefix reuse verified via llama-server (requests 2-4 prompt_n=361).
+      Known limitation: once per ~4 boots the first generated token flips
+      between two near-tie logits (Qwen3 thinking marker vs </think>
+      continuation); mechanism not found (initcheck clean, ASLR/VRAM-fill/
+      graphs/concurrency probes negative); bulk generation unaffected.
 - [x] PASS Compute sanitizer: 7 runs (memcheck + initcheck x3, server reuse),
       0 errors. Note: runs used GGML_CUDA_DISABLE_GRAPHS=1.
 

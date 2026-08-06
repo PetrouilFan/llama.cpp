@@ -1,12 +1,12 @@
 # SHA256 checksums for beyond-perplexity-v0.1.0-paper
-# Release binaries (build-bp-release-verify, CUDA 13.3.73, cc 8.6, GGML_CUDA_FA_ALL_QUANTS=ON, gcc 16.1.1)
+# Release binaries (build-bp-release-sm86, CUDA 13.3.73, cc 8.6, GGML_CUDA_FA_ALL_QUANTS=ON, gcc 16.1.1)
 # Feature head commit: bb3b94dc6
 # Upstream base: e031d956797f9a10f704fa523fe5fd9b72e9015c
 
-d32436bd8bb97cc8f9c56a4e77e70a79d5dc174870e2536cc934133089f4f744  llama-cli
-7f5cda41fffc37071a9996c9da4c69f09196d94393f0bf27a2726e51a2ea38d0  llama-server
-2d5a72179d40b759ee13b91ff189e88b3038ed2ed5695f1ad80b525afa3f5c05  llama-perplexity
-6e5f2de4f27092e4a7c6ba7efc8bd8c8dc3e4e8eb0184f72a6d0d01e58586685  test-backend-ops
-ccbd3b3254c0213e6a875ccd85181f24f653f9d5dd8ffd9ded95bc30a90b4126  test-beyond-perplexity-quants
-61497acb261d4bafeeb3693a7e2936da96b18b3e66ab0dbb9fa2b8e724080675  test-kv-cache-policy
-0ee149e395b60cc0da11783dea195976518f6bedf6f6c592508ac9a08d0d5e2e  libggml-cuda.so.0.18.1
+4c2dd12eec2e125d738c9a0062e16e6f0cd56505ef284aad644924562ddfcdb3  llama-cli
+410812924d76e611bddde261cd0b9999827198e9e9bf08576675cbfcb74b7cf4  llama-server
+0638cc8727b7e9bb342c63c874722e751880f41585af4d7b2a175e07dbc0c295  llama-perplexity
+993638a0f5293909a8b9e90e0726058c714b2182ad945042837db19e0c828085  test-backend-ops
+5b691d0469b1865f0e45e1c64fcf5e667dcfd6413353f17e060bc5cb53781f76  test-beyond-perplexity-quants
+bcce68452bc093e69013983e116ffe8989e7074911db5529fe82ff7b1929f777  test-kv-cache-policy
+0bedfca80a46fe33f31fcbb2345381b868d955fbb3d3b7f2d23d77b9b9908500  libggml-cuda.so.0.18.1

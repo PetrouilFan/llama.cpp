@@ -56,7 +56,7 @@
   "nu_vs_uniform_q2": {
     "source": "frozen paper measurements (uniform q2_0 KV not expressible in clean CUDA runtime)",
     "gsm8k_1319_strict": {"allq2_nu": 58.53, "allq2_uniform": 31.01},
-    "mbpp": {"allq2_nu": 48.0, "allq2_uniform": 30.8},
+    "mbpp": {"allq2_nu": 47.8, "allq2_uniform": 30.8},
     "truthfulqa_bleu": {"allq2_nu": 11.1249, "allq2_uniform": 7.7857},
     "llama32_1b_heldout_ppl": {"uniform_q2_all_v": [13.0153, 19.0996], "q4xq4_baseline": [11.8001, 17.3042]}
   }

@@ -80,7 +80,7 @@ comparison uses the frozen paper measurements:
 | benchmark      | allq2_nu | allq2_uniform |
 |----------------|----------|---------------|
 | GSM8K strict   | 58.53    | 31.01         |
-| MBPP           | 48.00    | 30.80         |
+| MBPP           | 47.8     | 30.80         |
 | TruthfulQA bleu| 11.1249  | 7.7857        |
 
 llama-3.2-1b cross-model held-out PPL: uniform Q2 all-V 13.0153 (wiki) /

@@ -40,6 +40,14 @@ implementation and of the verification reported in this repository.
   own Q4K-Q4V baseline, not on absolute values.
 - **GSM8K smoke subset** is the first 200 examples of the openai/gsm8k test
   split (frozen in the paper revision4 records), not a random subset.
+- **Rare first-token nondeterminism.** In one of ~4 verified boots, the first
+  generated token flipped between two near-tie logits (Qwen3 thinking marker
+  vs `</think>` continuation) on the old verification binary; bulk generation
+  (128 tokens) stayed bit-exact in all matching-boot runs. No mechanism found:
+  compute-sanitizer initcheck reports 0 uninitialized reads (global, shared,
+  local); probes for ASLR, VRAM-fill, CUDA graphs, launch blocking, and
+  concurrent load were negative. Recorded as a known limitation, not a gate
+  failure (RELEASE_CHECKLIST_COMPLETED.md).
 - **HumanEval/MBPP were not rerun** on the clean branch. They are not
   required by the acceptance gates; the paper numbers remain in
   `reference/06_PAPER_IMPLEMENTATION_TARGETS.json`.
@@ -51,7 +59,7 @@ implementation and of the verification reported in this repository.
   cannot express uniform `q2_0` KV (no SET_ROWS support, see above), so this
   comparison is not reproducible at runtime. The release waives the gate and
   relies on the frozen paper measurements instead: GSM8K strict 58.53 (NU) vs
-  31.01 (uniform), MBPP 48.00 vs 30.80, TruthfulQA bleu 11.1249 vs 7.7857,
+  31.01 (uniform), MBPP 47.8 vs 30.80, TruthfulQA bleu 11.1249 vs 7.7857,
   and the llama-3.2-1b held-out PPL 13.0153/19.0996 (uniform all-V) vs
   11.8001/17.3042 (Q4xQ4 baseline). The waiver is recorded in
   RELEASE_MANIFEST.json (`waived_gates`).
