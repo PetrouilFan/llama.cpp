@@ -1,6 +1,6 @@
 # SHA256 checksums for beyond-perplexity-v0.1.0-paper
 # Release binaries (build-bp-release-verify, CUDA 13.3.73, cc 8.6, GGML_CUDA_FA_ALL_QUANTS=ON, gcc 16.1.1)
-# Feature head commit: 3b32e6af5b39da1539338abe09cd2a9dc743b3a3
+# Feature head commit: bb3b94dc6
 # Upstream base: e031d956797f9a10f704fa523fe5fd9b72e9015c
 
 d32436bd8bb97cc8f9c56a4e77e70a79d5dc174870e2536cc934133089f4f744  llama-cli
