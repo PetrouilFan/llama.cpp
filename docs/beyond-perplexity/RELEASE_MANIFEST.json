@@ -2,7 +2,7 @@
   "release": "beyond-perplexity-v0.1.0-paper",
   "date": "2026-08-05",
   "upstream_base_commit": "e031d956797f9a10f704fa523fe5fd9b72e9015c",
-  "feature_head_commit": "3b32e6af5b39da1539338abe09cd2a9dc743b3a3",
+  "feature_head_commit": "bb3b94dc6f1b395606d40a17f23c775a96fffbb2",
   "tag": "beyond-perplexity-v0.1.0-paper",
   "model": {
     "name": "Qwen3-4B-Instruct Q4_K_M",
