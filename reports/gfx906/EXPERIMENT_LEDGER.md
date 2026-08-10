@@ -209,3 +209,37 @@ Decision:
 REJECT. K_vram is not a free parameter for Q8_0: non-FP4 tile layouts are
 structurally coupled to K_vram == MMQ_ITER_K. No further K_vram experiments
 for these types without a tile-layout redesign (out of scope).
+
+## EXP-MMVQ-001 (2026-08-10, REVERTED, no commit)
+
+Change:
+Dedicated gfx906 MMVQ parameter table (MMVQ_PARAMETERS_GCN906) with
+ncols_dst 1-4 -> nwarps=4 (wave64: 128 -> 256 threads/block). Added
+device gate (#elif defined(VEGA20)) and host gate (cc ==
+GGML_CUDA_CC_VEGA20, placed before the GCN/CDNA path; CDNA/gfx900
+unchanged).
+
+Hypothesis:
+More wave64 warps per block increase decode latency hiding (RDNA4 uses
+8 warps at ncols_dst=1).
+
+Benchmark (llama-bench 5 reps, tg128 vs GCN 2-warp baseline):
+Q4_0: 177.4 vs 189 (-6.4%)
+Q4_K: 119.5 vs 163 (-26.7%)
+Q8_0: 147.5 vs 167 (-11.7%)
+
+Kernel resources (ncols=1, 4 warps / max_flat_workgroup_size=256):
+Q4_0 fusion1 smallk1: vgpr221 sgpr56 (spills likely); fusion1 smallk0:
+vgpr77; fusion0 smallk0: vgpr34. LDS ~5-6KB.
+Correctness: MUL_MAT 1186/1186 PASS.
+
+Profiler findings (reasoning, no counters available):
+Decode occupancy is already maximal at 2 warps: 4096 row-blocks x
+128 threads, 16 blocks/CU x 2 wave64 waves = 32 waves/CU (2048
+threads = HW max). Doubling threads per block does not add resident
+waves; it only adds idle threads (Q4_K: blocks_per_iter=32 >
+blocks_per_row_x=16, so warps beyond the first do no vec_dot work)
+and reduction traffic.
+Note: Q4_K/Q8_0 tg > Q4_0 tg (163/167 vs 189) despite Q4_0 reading the
+fewest weight bytes suggests decode is NOT purely HBM-bandwidth
+limited; per-row work is latency/instruction bound.
