@@ -179,3 +179,33 @@ Decision:
 REJECT. Stream-K alone is neutral to slightly negative for Q4 quants on gfx906.
 Q4_0/Q4_K restored byte-identical to the upstream-inherited RDNA2 config;
 verified pp512 Q4_0 2647, Q4_K 2122 (baseline 2647/2107), MUL_MAT 1186/1186 OK.
+
+## EXP-MMQ-009 (2026-08-10, REVERTED, no commit)
+
+Change:
+Q8_0 gfx906 MMQ K_vram 256 (MMQ_ITER_K) -> 512 (stream_k true).
+
+Hypothesis:
+Larger K chunks per tile iteration reduce tile reload overhead.
+
+Benchmark (5 reps; NOTE results are INVALID - see below):
+pp128 3350, pp256 4665, pp512 5132, pp1024 5226, pp2048 5143
+(superficially +62% vs 3176 baseline - achieved by skipping work).
+
+Correctness:
+FAIL. MUL_MAT q8_0 m=2880 n=32 k=2880 ERR=0.86, m=16 n=16 k=1024 bs=[3,2]
+ERR=1.00. Consecutive FAILs, deterministic.
+
+Profiler findings:
+ITER_K only scales blocks_per_iter = ITER_K/qk (the kb0 step in
+mul_mat_q_process_tile) but the SRAM tiles (tile_x/tile_y) are HARDCODED
+to cover MMQ_ITER_K=256 K elements per iteration (tile_x I*2*MMQ_TILE_NE_K,
+tile_y J*MMQ_TILE_Y_K = one block_q8_1_mmq per column). With K_vram=512 the
+kernel steps 16 qk-blocks per iteration while each tile only holds 8 ->
+skips half the K dimension. Only FP4 types have a different ITER_K
+(MMQ_ITER_K_FP4=512) because their tile layout differs.
+
+Decision:
+REJECT. K_vram is not a free parameter for Q8_0: non-FP4 tile layouts are
+structurally coupled to K_vram == MMQ_ITER_K. No further K_vram experiments
+for these types without a tile-layout redesign (out of scope).
