@@ -1499,6 +1499,11 @@ void mul_mat_q_switch_J(ggml_backend_cuda_context & ctx, const mmq_args & args, 
         }
     }
 
+    // gfx906: with large tiles, small batches spawn too few blocks to fill the GPU
+    if (cc == GGML_CUDA_CC_VEGA20 && J_best > 64 && args.ncols_max <= 128) {
+        J_best = 64;
+    }
+
     switch (J_best) {
         case   8:
             launch_mul_mat_q<type,   8, fallback>(ctx, args, stream);

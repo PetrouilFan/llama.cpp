@@ -56,3 +56,62 @@ the change yet), MUL_MAT_ID 865/865.
 
 Decision:
 KEEP (pending J/occupancy/1024-thread tests and final regression matrix).
+## EXP-MMQ-003 (2026-08-10)
+
+Change:
+Q8_0 gfx906 MMQ occupancy hint 2 -> 1 (nthreads 512).
+
+Hypothesis:
+LDS-bound 1 block/CU; hint only constrains compiler register allocation.
+
+Benchmark:
+pp512 1976 vs 1972 (occ=2): no measurable effect (+0.2%).
+
+Decision:
+REVERT to occupancy 2 (no benefit, keep default).
+
+## EXP-MMQ-004 (2026-08-10)
+
+Change:
+Q8_0 gfx906 MMQ I 128 -> 64 (nthreads 512, J up to 128).
+
+Hypothesis:
+More row tiles (nty 16 -> 32) improves small-batch parallelism.
+
+Benchmark:
+pp128 1236 (-24%), pp256 1285 (-25%), pp512 1495 (-24%),
+pp1024 1494 (-24%), pp2048 1463 (-26%) vs I=128 config.
+Correctness: MUL_MAT OK.
+
+Decision:
+REJECT. I=64 roughly halves per-wave arithmetic depth and loses ~25%.
+Mechanism not profiled further (clear loss, small value).
+
+## EXP-MMQ-005 (2026-08-10, commit <pending>)
+
+Change:
+Q8_0 gfx906 MMQ: extended J table 8..64 -> 8..128 (nthreads 512, I 128),
+plus gfx906-gated clamp in mul_mat_q_switch_J (mmq.cuh): if
+ncols_max <= 128, force J_best <= 64 (large-tile single-tile grids spawn
+only 16 blocks = 128 waves < 240 SIMD slots -> under-filled GPU).
+
+Hypothesis:
+Bigger J tiles halve x-tile reload traffic (x tile loaded once per tile);
+at ncols > 128 the GPU stays filled (ntiles >= 2); at ncols <= 128 the
+clamp keeps block count >= 32.
+
+Benchmark (5 reps; 10-rep confirm for pp256/pp512):
+pp128 1662 vs 1142 (+45.5%)
+pp256 2146 vs 1180 (+81.9%)   [10 reps: 2144.1 +- 102.9]
+pp512 2191 vs 1365 (+60.5%)   [10 reps: 2208.2 +- 31.1]
+pp1024 2218 vs 1377 (+61.1%)
+pp2048 2202 vs 1371 (+60.6%)
+tg128 163.9 (unchanged, MMVQ path untouched).
+
+Without clamp, J=128 alone: pp128 1374 (-15.8% vs J64), pp >= 256: +12..+25%.
+
+Correctness:
+PASS (MUL_MAT 1186/1186, MUL_MAT_ID 865/865).
+
+Decision:
+KEEP. Q8_0 pp +45-61% total vs upstream baseline.
