@@ -243,3 +243,31 @@ and reduction traffic.
 Note: Q4_K/Q8_0 tg > Q4_0 tg (163/167 vs 189) despite Q4_0 reading the
 fewest weight bytes suggests decode is NOT purely HBM-bandwidth
 limited; per-row work is latency/instruction bound.
+
+## EXP-FA-001 (2026-08-10, commit 37b0afd99)
+
+Change:
+Flash-attn VEC kernel nthreads 128 -> 256 on gfx906 only (host gated on
+cc == GGML_CUDA_CC_VEGA20, device gated on #ifdef VEGA20). Both must agree
+(device constexpr used in kernel body, e.g. KV loop strides by nthreads).
+
+Hypothesis:
+VEC kernel used for all decode layers with Q8_0 KV and for MHA layers with
+F16 KV. 128 threads = 2 wave64 warps; 256 threads may improve latency hiding
+on the 4-SIMD GCN core. 512 threads also tested (pure thread-count change).
+
+Benchmark (llama-bench, tg @ depth, kv f16, 5 reps):
+Q4_0: d0 193.4 vs 186.3 (+3.8%), d4k 187.7 vs 181.0 (+3.7%),
+      d32k 163.8 vs 161.4 (+1.5%), d100k 126.2 vs 123.7 (+2.0%)
+Q8_0: d0 168.4 vs 163.4 (+3.1%), d4k 163.9 vs 155.5 (+5.4%),
+      d32k 145.3 vs 135.1 (+7.5%), d100k 114.3 vs 113.1 (+1.1%)
+Q4_K: d0 167.8 vs 169.1 (-0.8%, noise), d4k 161.8 vs 163.8 (-1.2%),
+      d32k 142.4 vs 143.6 (-0.8%), d100k 112.6 vs 111.7 (+0.8%)
+512-thread test: F16 KV d32k 160.26 vs 159.47 (256) = no gain;
+Q8_0 KV d32k 95.29 vs 106.06 (256) = -10.1% -> 512 REJECTED.
+
+Correctness:
+PASS (FLASH_ATTN_EXT MUL_MAT... test-backend-ops -o FLASH_ATTN_EXT all OK).
+
+Decision:
+KEEP 256 in both host and device dispatch.
