@@ -22,7 +22,7 @@ PASS (MUL_MAT 1186/1186, MUL_MAT_ID 865/865).
 Decision:
 KEEP (infrastructure).
 
-## EXP-MMQ-002 (2026-08-10, commit <pending>)
+## EXP-MMQ-002 (2026-08-10, commit 05dcb191b)
 
 Change:
 Q8_0 gfx906 MMQ nthreads 256 -> 512 (occupancy hint unchanged at 2).
@@ -87,7 +87,7 @@ Decision:
 REJECT. I=64 roughly halves per-wave arithmetic depth and loses ~25%.
 Mechanism not profiled further (clear loss, small value).
 
-## EXP-MMQ-005 (2026-08-10, commit <pending>)
+## EXP-MMQ-005 (2026-08-10, commit 246a52a30)
 
 Change:
 Q8_0 gfx906 MMQ: extended J table 8..64 -> 8..128 (nthreads 512, I 128),
@@ -116,7 +116,7 @@ PASS (MUL_MAT 1186/1186, MUL_MAT_ID 865/865).
 Decision:
 KEEP. Q8_0 pp +45-61% total vs upstream baseline.
 
-## EXP-MMQ-006 (2026-08-10, commit <pending>)
+## EXP-MMQ-006 (2026-08-10, commit f0864a2e4)
 
 Change:
 Q8_0 gfx906 MMQ stream_k false -> true (all 27 J/fallback entries).
@@ -138,3 +138,44 @@ PASS (MUL_MAT 1186/1186, MUL_MAT_ID 865/865).
 
 Decision:
 KEEP.
+
+## EXP-MMQ-007 (2026-08-10, REVERTED, no commit)
+
+Change:
+Q4_0/Q4_K gfx906 MMQ: J table 8..64 -> 8..128 + stream_k true (nthreads still 256).
+
+Hypothesis:
+Same large-tile + Stream-K recipe that won on Q8_0 transfers to Q4 quants.
+
+Benchmark (5 reps):
+Q4_0: pp128 2162 vs base 1691 (+27.9%, sd 263 - noisy), pp256 2008 vs 2412 (-16.7%),
+pp512 2174 vs 2647 (-17.9%), pp1024 2189 vs 2695 (-18.8%), pp2048 2186 vs 2678 (-18.4%).
+Q4_K: pp128 2184 vs 1470 (+48.6%, sd 151), pp256 1146 vs 1829 (-37.3%),
+pp512 1248 vs 2107 (-40.8%), pp1024 1247 vs 2133 (-41.5%), pp2048 1240 vs 2121 (-41.5%).
+Correctness: MUL_MAT OK.
+
+Profiler findings:
+sum[] per thread = J*I/nthreads = 64 floats at J=128 with 256 threads
+(vs 32 at J=64): VGPR pressure/spills; Q4_K vec_dot needs more temps than Q8.
+Kernel resources (Q4_K J=128, 256 thr) showed register growth vs J=64.
+
+Decision:
+REJECT. Q4 quants are instruction/LDS-bound, not bandwidth-bound; 256 threads
+and J<=64 already optimal for them. Do not reuse the Q8 recipe for Q4.
+
+## EXP-MMQ-008 (2026-08-10, REVERTED, no commit)
+
+Change:
+Q4_0/Q4_K gfx906 MMQ: stream_k true only (J table unchanged 8..64).
+
+Hypothesis:
+Isolate Stream-K effect on Q4 at the inherited geometry.
+
+Benchmark (5 reps):
+Q4_0: pp128 -0.4%, pp256 -2.7%, pp512 -3.1%, pp1024 -3.1%, pp2048 -3.1%.
+Q4_K: pp128 +0.8%, pp256 -0.9%, pp512 -0.9%, pp1024 -0.9%, pp2048 -0.8%.
+
+Decision:
+REJECT. Stream-K alone is neutral to slightly negative for Q4 quants on gfx906.
+Q4_0/Q4_K restored byte-identical to the upstream-inherited RDNA2 config;
+verified pp512 Q4_0 2647, Q4_K 2122 (baseline 2647/2107), MUL_MAT 1186/1186 OK.
