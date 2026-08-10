@@ -271,3 +271,63 @@ PASS (FLASH_ATTN_EXT MUL_MAT... test-backend-ops -o FLASH_ATTN_EXT all OK).
 
 Decision:
 KEEP 256 in both host and device dispatch.
+
+## EXP-FA-002 (2026-08-10, commit fe4f0a81b)
+
+Change:
+Dedicated gfx906 flash-attn TILE configuration table
+(ggml_cuda_fattn_tile_get_config_gfx906 in fattn-tile.cuh), byte-identical
+copy of the generic AMD table gfx906 previously received, wired into host
+dispatch (cc == GGML_CUDA_CC_VEGA20) and device dispatch
+(`#elif defined(VEGA20)`). RDNA/other AMD/CDNA untouched.
+
+Hypothesis:
+Create an architecture-specific TILE tuning point before changing anything.
+
+Benchmark:
+Behavior equivalence: tg@32k Q8_0 143.4 vs 145.3 pre-change (noise),
+Q4_0 151.4 sd 14.7 (noisy, within noise of 163.8 pre-change).
+Correctness: FLASH_ATTN_EXT 2/2 backends PASS.
+
+Decision:
+KEEP (infrastructure, same pattern as the MMQ config).
+
+## EXP-FA-003 (2026-08-10, REVERTED, no commit)
+
+Change:
+Two TILE tuning attempts on gfx906 table (64,64):
+A) ncols=4 nthreads 128 -> 256
+B) ncols2 occ 3->4, ncols4 occ 3->5 + nthreads back to 128, ncols8 occ 2->4
+
+Hypothesis:
+Decode TILE (GQA ratio-4 layers, cols_per_block=4) gets more wave64 warps
+per block (A) or more resident blocks (B); hides KV load latency.
+
+Benchmark (tg@32k, Q8_0, 5 reps - Q4_0 too noisy sd>14 to judge):
+A: 144.0 sd 1.7 vs 143.4 (no change)
+B: 142.2 sd 4.4 vs 143.4 (no change)
+Correctness: FLASH_ATTN_EXT PASS for both.
+
+Conclusion:
+tg at 32k+ depth is bandwidth-bound on gfx906: Q8_0 model 2.87 GB + KV
+read ~3 GB per token at 32k => ~870 GiB/s effective, near HBM peak.
+Kernel launch geometry does not move the needle; VEC kernel (EXP-FA-001)
+helped only because it improved load coalescing, not parallelism.
+
+Decision:
+REJECT both. Reverted to fe4f0a81b (dedicated table, untuned).
+
+## EXP-FA-004 (2026-08-10, REJECTED, no commit)
+
+Change:
+KV cache type Q8_0/Q8_0 (quantized) at 32k depth.
+
+Hypothesis:
+Halving KV traffic (1 byte/value vs 2) helps bandwidth-bound decode.
+
+Benchmark (tg@32k Q4_0): 98.63 vs 142.84 F16 KV (-31%).
+Q8_0 KV forces the VEC kernel on all layers; VEC dequant + scalar
+Q8_0 loads outweigh the 2x bandwidth savings on gfx906.
+
+Decision:
+REJECT. F16 KV stays. Documented as a gfx906-specific negative result.
