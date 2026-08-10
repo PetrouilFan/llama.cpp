@@ -115,3 +115,26 @@ PASS (MUL_MAT 1186/1186, MUL_MAT_ID 865/865).
 
 Decision:
 KEEP. Q8_0 pp +45-61% total vs upstream baseline.
+
+## EXP-MMQ-006 (2026-08-10, commit <pending>)
+
+Change:
+Q8_0 gfx906 MMQ stream_k false -> true (all 27 J/fallback entries).
+
+Hypothesis:
+Tiled grid (64 blocks at pp512) leaves CUs idle on tail tiles; Stream-K
+persistent-partitioning balances K-partial work across the 60 CUs.
+
+Benchmark (5 reps):
+pp128 2067 vs 1662 no-SK (+24.3%)
+pp256 2959 vs 2146 (+37.9%)
+pp512 3176 vs 2191 (+45.0%)
+pp1024 3208 vs 2218 (+44.6%)
+pp2048 3176 vs 2202 (+44.2%)
+vs upstream baseline: pp512 1365 -> 3176 (+133%), pp2048 1371 -> 3176 (+132%).
+
+Correctness:
+PASS (MUL_MAT 1186/1186, MUL_MAT_ID 865/865).
+
+Decision:
+KEEP.
