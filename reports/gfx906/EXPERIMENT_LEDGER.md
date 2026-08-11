@@ -331,3 +331,25 @@ Q8_0 loads outweigh the 2x bandwidth savings on gfx906.
 
 Decision:
 REJECT. F16 KV stays. Documented as a gfx906-specific negative result.
+
+## EXP-MMQ-010 (2026-08-10, control experiment, no code change)
+
+Change:
+Built build-cublas/ with -DGGML_CUDA_FORCE_CUBLAS=ON (dequant + hipBLAS
+instead of MMQ; gfx906 otherwise always uses MMQ since
+ggml_cuda_should_use_mmq returns true for non-CDNA).
+
+Hypothesis:
+rocBLAS/hipBLAS GEMM as a diagnostic control: is the custom quantized
+MMQ kernel providing value on gfx906?
+
+Benchmark (llama-bench 5 reps, LFM2.5-2.6B):
+ROCBLAS Q8_0: pp128 1062, pp256 1316, pp512 1700, pp1024 1709, pp2048 1730
+vs tuned MMQ: 2067 / 2959 / 3176 / 3208 / 3176
+= tuned MMQ +95% / +125% / +87% / +88% / +84%.
+ROCBLAS Q4_0 pp512 1727 vs tuned MMQ 2647 (+53%).
+Upstream MMQ (before tuning) was -20% vs rocBLAS.
+
+Decision:
+Custom MMQ is the right path on gfx906; the tuning makes it decisively
+faster. No rocBLAS workaround shipped.
