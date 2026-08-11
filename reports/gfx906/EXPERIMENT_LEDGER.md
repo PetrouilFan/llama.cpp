@@ -635,3 +635,25 @@ gain: this lever is closed on our toolchain.
 Decision:
 REJECT. Flag set is incompatible with clang-22; keep stock
 CMAKE_HIP_FLAGS. Do not retry on this environment.
+
+## EXP-NOTE-20260812 (2026-08-12, no code change)
+
+Observation:
+Overnight session ran on branch gfx906-optimize, whose Q8_0 MMQ table
+still carries stream_k=true (commit f0864a2e4, pre-freeze-verdict).
+Hundreds of llama-bench runs (gemma pp512/1024/2048, LFM Q8_0 pp512,
+tg128) and repeated test-backend-ops MUL_MAT/MUL_MAT_ID all completed
+with ZERO freezes or GPU hangs. LFM Q8_0 pp512 = 3215 t/s, matching
+the EXPECTED Stream-K numbers (3176-3208) - confirms SK path is active
+in the binary and stable under this session's workloads.
+
+Freeze history (EXP-SYS-001/002, EXP-MMQ-011): 2 freezes attributed to
+the SK kernel/fixup/tmp_fixup machinery, both during earlier sessions.
+The SK exclusion was implemented ONLY on branch gfx906-safe
+(stream_k=false there); branch gfx906-optimize still ships SK for Q8_0.
+
+Status: OPEN question for the user. Options: (a) keep SK on optimize
+if reproducible-freeze-free, (b) port stream_k=false from gfx906-safe,
+(c) binary-search the triggering workload (graphs ON? test-backend-ops
+specific shapes? repeated reset?). Not resolved autonomously - change
+of committed SK behavior is a user decision.
