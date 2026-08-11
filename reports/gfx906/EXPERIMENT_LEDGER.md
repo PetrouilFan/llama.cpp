@@ -409,8 +409,10 @@ tiles and the 512-thread launch geometry both pass independently. Stream-K is
 a structural change (persistent grid, fixup kernel, occupancy-driven sizing)
 vs pure table/value changes that pass.
 
-Status: open. Confirmation run of f0864a2e4 alone still pending (needs one
-more GPU run; may freeze the machine again).
+Status: CONFIRMED. EXP-MMQ-011 (static SK grid variant, same SK kernel +
+fixup machinery) produced a second hard freeze, while every non-SK change
+ran freeze-free for hours. The SK kernel/fixup/tmp_fixup machinery is now
+excluded from production and from further experiments (2 for 2).
 
 ## EXP-MMQ-011 (2026-08-11, REVERTED, UNSAFE - no commit)
 
