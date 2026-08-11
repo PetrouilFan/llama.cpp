@@ -411,3 +411,109 @@ vs pure table/value changes that pass.
 
 Status: open. Confirmation run of f0864a2e4 alone still pending (needs one
 more GPU run; may freeze the machine again).
+
+## EXP-MMQ-011 (2026-08-11, REVERTED, UNSAFE - no commit)
+
+Change:
+Static K-split grid as a "safe" Stream-K alternative: stream_k=true for Q8_0
+again, but instead of the persistent 60-block grid, a static grid rounded up
+to a multiple of nsm (120/180/240 blocks). Still used the in-tree
+mul_mat_q_stream_k kernel + fixup kernel + tmp_fixup buffer machinery.
+
+Hypothesis:
+The Stream-K gain comes from work distribution, not persistence; a static
+full-wave grid should capture the benefit without the persistent blocks.
+
+Result:
+SECOND HARD FREEZE with the Stream-K machinery (machine froze during
+test-backend-ops, required reboot). 2 for 2 with SK machinery now:
+  f0864a2e4 (persistent SK)     -> freeze
+  EXP-MMQ-011 (static SK grid)  -> freeze
+  every other change (512 thr, J=128, FA vec/tile) -> zero freezes in hours
+  of use. This points at the SK kernel + fixup + tmp_fixup machinery itself
+  (possible GPU hang: bad access pattern, loop, or launch-bounds mismatch
+  hangs the wavefronts; display on the AMD GPU goes black), not persistence.
+
+Decision:
+REJECT + mark UNSAFE. The Stream-K kernel/fixup machinery is excluded from
+production and from any further experiments. Abandon the Stream-K direction
+entirely; pursue only conventional-launch improvements (no SK kernel, no
+fixup kernel, no tmp_fixup pool).
+
+## EXP-MMQ-012 (2026-08-11, commit ae4fa0448, KEEP)
+
+Change:
+Q8_0 MMQ tile-load: 32 threads per row -> 8 threads per row in
+ggml_cuda_mmq_load_tiles_q8_0 (mmq-load-tiles.cuh), gated on GGML_USE_HIP &&
+VEGA20. Ported from mx-llama.cpp commit 5c4505b5d (iacopPBK; origin upstream
+PR ggml-org/llama.cpp#21698 but with threads_per_row=8 instead of the PR's
+16, which measured ~27% slower on gfx906).
+
+Hypothesis:
+8 threads/row cover the QI8_0=8 ints per q8_0 block with one get_int_b2
+per thread (kbx = txi/QI8_0, kqsx = txi%QI8_0); 32 threads/row leaves 3 of 4
+threads idle during the qs load and wastes LDS write cycles.
+
+Benchmark (LFM2.5-2.6B-Q8_0, 5 reps, t/s):
+load-tiles only:  pp128 1947 | pp256 2266 | pp512 2327 | pp1024 2344 | pp2048 2328
+vs safe baseline: 1663 | 2150 | 2200 | 2213 | 2199
+(+17.1% pp128, +5.4% pp256, +5.8% pp512, +5.9% pp1024, +5.9% pp2048)
+
+Correctness: PASS (MUL_MAT 1186/1186).
+Freezes: NONE (hours of use).
+Fork reference numbers: Qwen3-14B-Q8 1-GPU pp512 271->409 (+51%),
+Qwen3.6-27B-Q8 4-GPU pp512 425->575 (+35%).
+
+Decision:
+KEEP.
+
+## EXP-MMQ-013 (2026-08-11, commit 81ee403c9, KEEP)
+
+Change:
+Q8_0 MMQ vec_dot partial k-unroll: `#pragma unroll 2` above the k01 loop in
+vec_dot_q8_0_q8_1_dp4a (mmq-vec-dot.cuh), gated on __gfx906__. Ported from
+mx-llama.cpp commit f1684f76c (iacopPBK).
+
+Hypothesis:
+y stride between j iterations (1152 B) exceeds the ds_read2_b32 immediate
+offset limit (1020 B), so each j needs a materialized address; unrolling by
+2 halves the address-materialization + loop overhead. Full unroll spills
+(~686 regs) and is much slower.
+
+Benchmark (LFM2.5-2.6B-Q8_0, 5 reps, t/s):
+k-unroll only:    pp128 1727 | pp256 2162 | pp512 2214 | pp1024 2232 | pp2048 2218
+vs safe baseline: 1663 | 2150 | 2200 | 2213 | 2199
+(+3.8% pp128, +0.6% pp256, +0.6% pp512, +0.9% pp1024, +0.9% pp2048)
+Combined with EXP-MMQ-012: pp128 2147 | pp256 2300 | pp512 2362 | pp1024 2377 |
+pp2048 2361 (+29.1% pp128 vs baseline).
+
+Correctness: PASS (MUL_MAT 1186/1186).
+Freezes: NONE.
+Fork reference numbers: gemma-4-26B-A4B-Q8 MoE 1-GPU pp2048 +5.8%,
+Qwen3.6-35B-A3B-Q8 4-GPU pp4096 +5.5%, Q4_0 guardrail +0.0%.
+
+Decision:
+KEEP.
+
+## EXP-CROSS-001 (2026-08-11, cross-model validation, no code change)
+
+Change:
+Re-run llama-bench on qwen2.5-1.5B (dense transformer, D=128 heads,
+conventional shapes) with the safe branch (both MMQ patches applied) to check
+whether the Q8_0 MMQ gains generalize beyond LFM2.5-2.6B.
+
+Benchmark (5 reps, t/s; upstream reference from llama.cpp-upstream worktree):
+qwen2.5-1.5b-instruct-q8_0:
+  safe:  pp128 2551.1 sd197 | pp512 4288.5 sd250 | pp2048 4210.7 sd4.6
+  upstream: pp512 2414 -> +78%
+qwen2.5-1.5b-instruct-q4_0:
+  safe:  pp128 2071.3 sd133 | pp512 4871.7 sd213 | pp2048 4713.1 sd4.8
+  upstream: pp512 4783 -> +1.9% (Q4 untouched, expected noise)
+
+Verdict:
+Q8_0 MMQ generalization CONFIRMED on a conventional dense transformer
+(+78% pp512). Q4_0 unaffected. Still TODO: qwen tg128, qwen Q4_K_M, LFM tg
+recheck.
+
+Decision:
+KEEP all. Continue validation.
