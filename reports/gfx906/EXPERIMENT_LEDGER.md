@@ -519,3 +519,56 @@ recheck.
 
 Decision:
 KEEP all. Continue validation.
+
+## EXP-GEMV-001 (2026-08-11, commit TBD, KEEP)
+
+Change:
+Q4_K MMVQ (token generation, n=1) vector dot ratio VDR_Q4_K_Q8_1_MMVQ
+2 -> 8 (vecdotq.cuh:504). Pure work-partitioning constant of the
+mul_mat_vec_q inner loop (mmvq.cu:594): changes only how the K-dimension
+quant blocks are split across threads (kqs = vdr * (tid % (qi/vdr)),
+blocks_per_iter = vdr*nwarps*warp_size/qi); same math, identical results.
+
+Hypothesis:
+Default VDR=2 is an NVIDIA/generic legacy value never tuned for GCN
+(warp_size=64, nwarps=2). Larger vdr means fewer threads cooperate per
+x-block (qi/vdr), each covering a wider contiguous k-quant run: fewer
+loop iterations and y-block re-reads, larger effective DRAM
+transactions -> better GEMV streaming on gfx906.
+
+Benchmark (gemma-4-12b-it-Q4_K_M, build-prof graphs OFF, 3 reps, t/s):
+vdr=1:  tg1 35.99 | tg32 35.75 | tg128 35.52   (-30% regression)
+vdr=2:  tg128 50.65                            (upstream default baseline)
+vdr=4:  tg1 54.7  | tg32 55.08 | tg128 54.52   (+8%)
+vdr=8:  tg1 60.09 | tg32 60.18 | tg128 60.54   (+19%) KEEP
+vdr=16: tg1 60.5  | tg32 60.26 | tg128 60.26   identical to 8 within noise
+vdr=32: SYSTEM CRASH (full machine freeze during llama-bench run, no
+        logs recoverable; see below)
+
+Plateau at 8-16: DRAM-bound reached (~690 -> ~830 GB/s streaming).
+
+vdr=16 vs vdr=8:
+Same performance within measurement noise (tg128 60.26 vs 60.54, tg1
+60.5 vs 60.09, non-monotonic). Kept 8: also the value the sibling MMQ
+kernel ships upstream (VDR_Q4_K_Q8_1_MMQ = 8), and qi/vdr=4 threads per
+x-block stays safely away from the degenerate edge that broke at 32.
+
+vdr=32 analysis (why it crashed):
+qi/vdr collapses to 1: kqs = 32*(tid%1) = 0 for every thread and
+kbx = tid/1, so threads no longer cooperate per x-block. Only
+tid < blocks_per_row_x (=15 of 128) threads do any work, warp_reduce_sum
+then sums dot products of DIFFERENT x-blocks (reduction assumed sibling
+threads share a kbx), and 15/16 of each block's quant slices are never
+computed. Invalid configuration by construction; on gfx906 the
+pathological kernel wedged the driver/firmware hard enough to freeze the
+machine (no logs survived). vdr=32 is NOT a valid tuning point.
+
+Correctness:
+vdr=8/16 produce identical math by construction (partitioning only).
+llama-bench does not validate output content; no perplexity check run.
+
+Fork reference numbers: none (tg-only change, private fork).
+
+Decision:
+KEEP vdr=8 for Q4_K MMVQ on gfx906. Reject 32 (crash), reject 16
+(no gain over 8), reject 1 (regression), 4 (partial gain).

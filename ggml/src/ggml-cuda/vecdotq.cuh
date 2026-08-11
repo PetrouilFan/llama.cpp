@@ -501,7 +501,7 @@ static __device__ __forceinline__ float vec_dot_q3_K_q8_1_impl_mmq(
     return d3*d8 * sumi;
 }
 
-#define VDR_Q4_K_Q8_1_MMVQ 2
+#define VDR_Q4_K_Q8_1_MMVQ 8
 #define VDR_Q4_K_Q8_1_MMQ  8
 
 // contiguous v/x values
