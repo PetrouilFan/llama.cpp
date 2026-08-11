@@ -573,7 +573,7 @@ Decision:
 KEEP vdr=8 for Q4_K MMVQ on gfx906. Reject 32 (crash), reject 16
 (no gain over 8), reject 1 (regression), 4 (partial gain).
 
-## EXP-MMQ-013 (2026-08-12, commit TBD, KEEP)
+## EXP-MMQ-013 (2026-08-12, commit 5b98f77a2, KEEP)
 
 Change:
 Q5_K/Q6_K MMQ I-tile width 128 -> 64 for J=64 entries in
@@ -595,16 +595,43 @@ Control LFM2.5-2.6B-Q8_0 (no Q5_K/Q6_K tensors): pp512 3211.75 ->
 3215.3 (+0.1%, flat), tg128 169.61 -> 166.49 (noise, stddev 8.5).
 
 Correctness:
-PASS. test-backend-ops MUL_MAT/MUL_MAT_ID: all Q5_K/Q6_K cases PASS
-(28/28). NOTE: q4_K cases fail (28 MUL_MAT + 24 MUL_MAT_ID) at tiny
-shapes (m=16, n<=8, k<=1024) - regression pre-existing at HEAD
-(bisect: clean checkout reproduces; the production build binary from
-before 141d93529 passes). Impact on real workloads: none observed
-(gemma/LFM tg and pp outputs sane; tensors with m=16 not present in
-target models). Suspect commit c41d69f71 (Q4_K nthreads 256 -> 512)
-or interaction with the tiny-m grid. INVESTIGATE.
+PASS for changed types. test-backend-ops MUL_MAT/MUL_MAT_ID: all
+Q5_K/Q6_K cases PASS (28/28).
+NOTE: q4_K cases FAIL (28 MUL_MAT + 24 MUL_MAT_ID) at tiny shapes
+(m=16, n<=8, k<=1024), same failure set as upstream vanilla master
+62bf73d25 (no gfx906 config, VDR=2): 1158/1186 + 841/865 there too.
+Verified by rebuilding upstream master from scratch in a worktree.
+Therefore pre-existing upstream/ROCm-7.2/clang-22 issue, NOT caused
+by any fork tuning. Impact on real workloads: none (no target model
+tensor has m=16 rows; gemma/LFM pp+tg outputs sane).
 
 Decision:
 KEEP. +9.8% PP on Q4_K_M prompt processing at pp512, pp2048 also
 improved. The q4_K tiny-shape MUL_MAT correctness failure is a
 pre-existing bug (see note) to be investigated separately.
+
+## EXP-CMP-001 (2026-08-12, commit 5b98f77a2, REJECTED)
+
+Change:
+Compiler scheduler flag experiment: -mllvm -amdgpu-sched-strategy=max-ilp
+(as validated on MI50 in the mixa3607 reference repo, ROCm 7.14/LLVM 23).
+
+Hypothesis:
+Reference repo reports fixing a PP regression on ROCm 7.14 with this
+flag; gains were PP-only, TG flat. Environment here is ROCm 7.2 +
+HIP clang 22.0.0git (different LLVM generation).
+
+Benchmark:
+No numbers - experiment aborted on correctness/crash grounds.
+
+Correctness:
+FAIL. test-backend-ops crashed with SIGILL (EXIT 132) before any test
+ran; llama-bench core-dumped on a minimal run (process-level only, no
+GPU hang, no machine freeze). The alternative iterative-ilp variant
+segfaults the compiler itself during build (clang internal error).
+Our stock build shows no PP regression to fix, so there is nothing to
+gain: this lever is closed on our toolchain.
+
+Decision:
+REJECT. Flag set is incompatible with clang-22; keep stock
+CMAKE_HIP_FLAGS. Do not retry on this environment.
