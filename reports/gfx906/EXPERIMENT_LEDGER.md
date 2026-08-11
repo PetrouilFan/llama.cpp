@@ -353,3 +353,32 @@ Upstream MMQ (before tuning) was -20% vs rocBLAS.
 Decision:
 Custom MMQ is the right path on gfx906; the tuning makes it decisively
 faster. No rocBLAS workaround shipped.
+
+## EXP-SYS-001 (2026-08-11, freeze investigation - attempt 1, NO code change)
+
+Phenomenon:
+Whole-machine hard freezes (GPU display off, no kernel logs - journal simply
+stops) while running llama.cpp GPU builds. First freeze was during a CPU-only
+build-cublas cmake build (GPU idle); freezes also occurred in a boot where
+llama.cpp never ran. No amdgpu errors before any freeze. Kernel cmdline has
+loglevel=3 (many messages suppressed).
+
+Facts gathered:
+- 4 boots observed; freezes at 23:37, 08:27, 08:51, 09:15. None have ANY
+  amdgpu/MCE/OOM/AER message before the freeze; log ends mid-activity.
+- 'pci 0000:00:1c.0: retraining failed' present at EVERY boot (pre-existing,
+  also in the stable 10h session boot). GPU sits behind a 2-level PCIe bridge.
+- rocblas-bench (pure rocBLAS, no llama.cpp code): 8192^3 f32 GEMM + sustained
+  4096x4096x8192 loop - PASSED, no crash. Heavy non-llama GPU load is stable.
+- Decisive non-freeze data point from earlier: 10h llama-bench session (13:53-
+  23:37, ALL gfx906 tuning + FA experiments) ran without a single crash/kernel
+  error the day the tuning work was done.
+
+Verification that the freezes are NOT caused by ordinary GPU load or the
+tuning work in general:
+- small llama-bench run (qwen Q4_0 pp8/tg8): passed, GPU idles back normally
+- rocblas-bench large GEMM: passed
+
+Conclusion so far:
+System is only destabilized by specific llama.cpp GPU code paths; at this
+point only commit-level bisection can localize it. TBD.
