@@ -572,3 +572,39 @@ Fork reference numbers: none (tg-only change, private fork).
 Decision:
 KEEP vdr=8 for Q4_K MMVQ on gfx906. Reject 32 (crash), reject 16
 (no gain over 8), reject 1 (regression), 4 (partial gain).
+
+## EXP-MMQ-013 (2026-08-12, commit TBD, KEEP)
+
+Change:
+Q5_K/Q6_K MMQ I-tile width 128 -> 64 for J=64 entries in
+mmq-config-gfx906.cuh (both fallback variants). Matches the I-tile
+width validated by the mixa3607 gfx906 sweep (CASE(Q5_K,256,2,64,64),
+CASE(Q6_K,256,2,64,64)). Q4_K untouched (I=128 mandatory, validated
++52.8% regression at I=64 on the reference GPU).
+
+Hypothesis:
+Q6_K is the hot MMQ type in Q4_K_M models (ffn_down/attn_v), and a
+narrower I-tile raises LDS throughput / fits more wavefronts, improving
+PP. TG unaffected (MMQ I-tile is a PP-only path).
+
+Benchmark (gemma-4-12b-it-Q4_K_M):
+pp512 baseline 529.52 -> 581.63 (+9.8%), pp1024 566.07, pp2048 baseline
+524.16 -> 538.75 (+2.8%) at the second run (556.55 first run).
+tg128 60.12 -> 60.20 (0.1%, noise).
+Control LFM2.5-2.6B-Q8_0 (no Q5_K/Q6_K tensors): pp512 3211.75 ->
+3215.3 (+0.1%, flat), tg128 169.61 -> 166.49 (noise, stddev 8.5).
+
+Correctness:
+PASS. test-backend-ops MUL_MAT/MUL_MAT_ID: all Q5_K/Q6_K cases PASS
+(28/28). NOTE: q4_K cases fail (28 MUL_MAT + 24 MUL_MAT_ID) at tiny
+shapes (m=16, n<=8, k<=1024) - regression pre-existing at HEAD
+(bisect: clean checkout reproduces; the production build binary from
+before 141d93529 passes). Impact on real workloads: none observed
+(gemma/LFM tg and pp outputs sane; tensors with m=16 not present in
+target models). Suspect commit c41d69f71 (Q4_K nthreads 256 -> 512)
+or interaction with the tiny-m grid. INVESTIGATE.
+
+Decision:
+KEEP. +9.8% PP on Q4_K_M prompt processing at pp512, pp2048 also
+improved. The q4_K tiny-shape MUL_MAT correctness failure is a
+pre-existing bug (see note) to be investigated separately.
