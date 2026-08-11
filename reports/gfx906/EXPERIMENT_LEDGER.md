@@ -382,3 +382,32 @@ tuning work in general:
 Conclusion so far:
 System is only destabilized by specific llama.cpp GPU code paths; at this
 point only commit-level bisection can localize it. TBD.
+
+## EXP-SYS-002 (2026-08-11, commit-level bisection of the freezes, NO code change)
+
+Hypothesis:
+Localize the freeze trigger to specific commits by running identical
+llama-bench workloads (LFM2.5-2.6B Q4_0 + Q8_0, pp512 + tg128, 3 reps) on
+builds at different commits, in persistent worktrees under
+/home/petrouil/Projects/ (llama.cpp-upstream, llama.cpp-512, llama.cpp-j128).
+
+Results (same command each time):
+- 62bf73d25 upstream pristine: PASS, no crash (qwen Q4_0 pp512 4783/tg128 243,
+  Q8_0 2414/221, LFM Q4_0 2621/191)
+- 05dcb191b (nthreads 512 only, occupancy 2, J 8..64, no SK, no FA, no
+  dedicated mmq config yet): PASS, no crash (Q4_0 pp512 2576.8/tg128 186.6,
+  Q8_0 pp512 1933.8/tg128 162.2)
+- 246a52a30 (+ J table up to 128 + small-batch clamp, NO Stream-K): PASS, no
+  crash (Q4_0 pp512 2608/tg128 191.6, Q8_0 pp512 2131/tg128 165.4)
+- f0864a2e4 (+ Stream-K true for Q8_0): user-reported crash
+- main branch 05b610a71 (all: + FA vec 256 threads + FA tile table): user-
+  reported crash
+
+Verdict:
+The freeze window is narrowed to the Stream-K commit being applied; J=128
+tiles and the 512-thread launch geometry both pass independently. Stream-K is
+a structural change (persistent grid, fixup kernel, occupancy-driven sizing)
+vs pure table/value changes that pass.
+
+Status: open. Confirmation run of f0864a2e4 alone still pending (needs one
+more GPU run; may freeze the machine again).
