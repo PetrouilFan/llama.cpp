@@ -657,3 +657,30 @@ if reproducible-freeze-free, (b) port stream_k=false from gfx906-safe,
 (c) binary-search the triggering workload (graphs ON? test-backend-ops
 specific shapes? repeated reset?). Not resolved autonomously - change
 of committed SK behavior is a user decision.
+
+## EXP-SYS-003 (2026-08-12, freeze #3, no code change)
+
+Trigger: llama-bench baseline, qwen2.5-1.5b-instruct-q6_k.gguf,
+-n 128 -d 0 -d 8192 -d 16384 -r 5 -o json, on production build/
+(graphs ON, HEAD efbdf6650). Hard freeze + reboot at ~12:15; journal
+ends abruptly, no amdgpu/XID/reset errors logged (loglevel=3 caveat).
+
+Critical difference vs EXP-SYS-001/002: this workload had NO Stream-K
+in its path. The q6_k model contains zero Q8_0 tensors (100% q6_K),
+and all Q5_K/Q6_K MMQ config entries (mmq-config-gfx906.cuh:143-157)
+have stream_k=false. So the 2-for-2 SK correlation is broken: the
+freeze reproduces on a third, unrelated code path (SK x2, vdr=32
+Q4_K x1, now plain q6_K decode/pp at depth on graphs-ON binary).
+
+Notes:
+- Depth-0 run of the same model on the same binary completes fine
+  (tg128 ~192 t/s, r3), so the trigger is not "q6_K per se".
+- Candidates not yet isolated: depth 8k/16k (FA + big KV), graphs ON
+  vs OFF (overnight stable runs were build-prof graphs OFF), pure
+  q6_K at scale, or plain hardware/clock instability (pre-existing
+  PCIe retraining + one CPU-only-build freeze documented earlier).
+- Plan: rerun baseline per-depth with separate invocations; if a
+  depth crashes again, bisect with build-prof (graphs OFF).
+
+Status: OPEN - freeze mechanism still unexplained; treat every long
+GPU run as potentially crash-inducing until isolated.
