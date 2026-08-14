@@ -171,7 +171,16 @@ llama_model_lfm2::graph<iswa>::graph(const llama_model & model, const llm_graph_
         // {n_embd, n_tokens} => {n_embd, n_seq_tokens, n_seqs}
         cur = ggml_reshape_3d(ctx0, cur, cur->ne[0], n_seq_tokens, n_seqs);
 
+        // Run the projection on the FLATTENED 2D batch: {n_embd, n_seq_tokens*n_seqs} =>
+        // {3*n_embd, n_seq_tokens*n_seqs}. Reshaping back to the 3D (n_seqs carried in
+        // ne[2]) layout is done AFTER the GEMM. This keeps the batch in ne[1] so the CUDA
+        // backend dispatches the batched sgemm/mul_mat_f path instead of the per-token
+        // mul_mat_vec_f fallback (which the mmvf gate selects whenever src1->ne[1] <= 8,
+        // e.g. for 1-token-per-sequence decode batches, re-reading the weights once per
+        // sequence and dominating decode time at high slot counts).
+        cur = ggml_reshape_2d(ctx0, cur, cur->ne[0], n_seq_tokens * n_seqs);
         auto * bcx = build_lora_mm(model.layers[il].shortconv.in_proj, cur);
+        bcx = ggml_reshape_3d(ctx0, bcx, bcx->ne[0], n_seq_tokens, n_seqs);
         cb(bcx, "model.layers.{}.conv.in_proj", il);
 
         constexpr auto n_chunks = 3;
@@ -217,7 +226,10 @@ llama_model_lfm2::graph<iswa>::graph(const llama_model & model, const llm_graph_
         cb(conv_out, "model.layers.{}.conv.conv", il);
 
         auto * y = ggml_mul(ctx0, c, conv_out);
-        y        = build_lora_mm(model.layers[il].shortconv.out_proj, y);
+        // same flattening trick as in_proj: keep {n_embd, n_seq_tokens*n_seqs} for the GEMM
+        y = ggml_reshape_2d(ctx0, y, y->ne[0], n_seq_tokens * n_seqs);
+        y = build_lora_mm(model.layers[il].shortconv.out_proj, y);
+        y = ggml_reshape_3d(ctx0, y, y->ne[0], n_seq_tokens, n_seqs);
         cb(y, "model.layers.{}.conv.out_proj", il);
         // {n_embd, n_seq_tokens, n_seqs} => {n_embd, n_tokens}
         y = ggml_reshape_2d(ctx0, y, y->ne[0], n_seq_tokens * n_seqs);

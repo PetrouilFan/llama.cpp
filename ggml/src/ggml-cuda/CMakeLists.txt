@@ -194,7 +194,11 @@ if (CUDAToolkit_FOUND)
 
     set(CUDA_CXX_FLAGS "")
 
-    set(CUDA_FLAGS -use_fast_math -extended-lambda)
+    set(CUDA_FLAGS -use_fast_math)
+    # -extended-lambda is an nvcc-only flag; clang CUDA rejects it
+    if (CMAKE_CUDA_COMPILER_ID STREQUAL "NVIDIA")
+        list(APPEND CUDA_FLAGS -extended-lambda)
+    endif()
 
     if (GGML_CUDA_DEBUG)
         list(APPEND CUDA_FLAGS -lineinfo)
