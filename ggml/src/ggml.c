@@ -1070,6 +1070,7 @@ static const char * GGML_OP_NAME[GGML_OP_COUNT] = {
     "FLASH_ATTN_BACK",
     "SSM_CONV",
     "SSM_SCAN",
+    "LFM2_SHORTCONV",
     "WIN_PART",
     "WIN_UNPART",
     "GET_REL_POS",
@@ -1100,7 +1101,7 @@ static const char * GGML_OP_NAME[GGML_OP_COUNT] = {
     "GLU",
 };
 
-static_assert(GGML_OP_COUNT == 101, "GGML_OP_COUNT != 101");
+static_assert(GGML_OP_COUNT == 102, "GGML_OP_COUNT != 102");
 
 static const char * GGML_OP_SYMBOL[GGML_OP_COUNT] = {
     "none",
@@ -1215,7 +1216,7 @@ static const char * GGML_OP_SYMBOL[GGML_OP_COUNT] = {
     "glu(x)",
 };
 
-static_assert(GGML_OP_COUNT == 101, "GGML_OP_COUNT != 101");
+static_assert(GGML_OP_COUNT == 102, "GGML_OP_COUNT != 102");
 
 static_assert(GGML_OP_POOL_COUNT == 2, "GGML_OP_POOL_COUNT != 2");
 
@@ -5574,6 +5575,45 @@ struct ggml_tensor * ggml_ssm_conv(
     result->op     = GGML_OP_SSM_CONV;
     result->src[0] = sx;
     result->src[1] = c;
+
+    return result;
+}
+
+// LFM2 fused shortconv block:
+//   u      = b * x                                    (elementwise)
+//   v      = [conv_state ; u]                          (concatenated along ne[0])
+//   o      = conv1d(v, conv_kernel)                    (K taps, K = state rows + 1)
+//   dst    = c * o
+//   conv_state_dst gets the new state (last D rows of v) written in-place:
+//     for n_t >= 1, row j is v[n_t + j] (i.e. the D previous u rows / state tail).
+// This fuses the mul(b,x), concat, ssm_conv, state cpy and mul(c,o) chain into a
+// single kernel, eliminating 4 launches per layer per step.
+
+struct ggml_tensor * ggml_lfm2_shortconv(
+        struct ggml_context * ctx,
+        struct ggml_tensor  * b,            // F32 [n_embd, n_t, n_seqs]
+        struct ggml_tensor  * x,            // F32 [n_embd, n_t, n_seqs]
+        struct ggml_tensor  * c,            // F32 [n_embd, n_t, n_seqs]
+        struct ggml_tensor  * conv_state,   // F32 [D, n_embd, n_seqs] read view
+        struct ggml_tensor  * conv_kernel,  // F32 [K, n_embd], K = D+1
+        struct ggml_tensor  * conv_state_dst /* F32 [D*n_embd*n_seqs] contiguous write view */) {
+    GGML_ASSERT(ggml_is_3d(b));
+    GGML_ASSERT(ggml_are_same_shape(b, x));
+    GGML_ASSERT(ggml_are_same_shape(b, c));
+    GGML_ASSERT(ggml_is_matrix(conv_kernel));
+    GGML_ASSERT(conv_state->ne[0] + 1 == conv_kernel->ne[0]);
+    GGML_ASSERT(conv_state->ne[1] == b->ne[0]);
+    GGML_ASSERT(conv_state->ne[2] == b->ne[2]);
+
+    struct ggml_tensor * result = ggml_new_tensor_3d(ctx, GGML_TYPE_F32, b->ne[0], b->ne[1], b->ne[2]);
+
+    result->op       = GGML_OP_LFM2_SHORTCONV;
+    result->src[0]   = b;
+    result->src[1]   = x;
+    result->src[2]   = c;
+    result->src[3]   = conv_state;
+    result->src[4]   = conv_kernel;
+    result->src[5]   = conv_state_dst;
 
     return result;
 }

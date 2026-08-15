@@ -47,6 +47,7 @@
 #include "ggml-cuda/softmax.cuh"
 #include "ggml-cuda/ssm-conv.cuh"
 #include "ggml-cuda/ssm-scan.cuh"
+#include "ggml-cuda/lfm2-shortconv.cuh"
 #include "ggml-cuda/sum.cuh"
 #include "ggml-cuda/sumrows.cuh"
 #include "ggml-cuda/top-k.cuh"
@@ -2340,6 +2341,9 @@ static bool ggml_cuda_compute_forward(ggml_backend_cuda_context & ctx, struct gg
             break;
         case GGML_OP_SSM_SCAN:
             ggml_cuda_op_ssm_scan(ctx, dst);
+            break;
+        case GGML_OP_LFM2_SHORTCONV:
+            ggml_cuda_op_lfm2_shortconv(ctx, dst);
             break;
         case GGML_OP_TOP_K:
             ggml_cuda_op_top_k(ctx, dst);
@@ -5208,6 +5212,10 @@ static bool ggml_backend_cuda_device_supports_op(ggml_backend_dev_t dev, const g
         case GGML_OP_SSM_CONV: {
             // assumes d_inner % threads == 0
             return op->src[0]->ne[1] % 128 == 0;
+        }
+        case GGML_OP_LFM2_SHORTCONV: {
+            // assumes n_embd % threads == 0 and d_conv in {2,3,4,5,9,15}
+            return op->src[0]->ne[0] % 128 == 0;
         }
         case GGML_OP_CONT:
             return true;

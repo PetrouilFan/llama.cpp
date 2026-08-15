@@ -9622,6 +9622,96 @@ void ggml_compute_forward_ssm_conv(
     }
 }
 
+// ggml_compute_forward_lfm2_shortconv
+
+static void ggml_compute_forward_lfm2_shortconv_f32(
+        const ggml_compute_params * params,
+        ggml_tensor * dst) {
+    const ggml_tensor * src_b = dst->src[0]; // b  {n_embd, n_t, n_seqs}
+    const ggml_tensor * src_x = dst->src[1]; // x  {n_embd, n_t, n_seqs}
+    const ggml_tensor * src_c = dst->src[2]; // c  {n_embd, n_t, n_seqs}
+    const ggml_tensor * src_st = dst->src[3]; // conv_state read view  {D, n_embd, n_seqs}
+    const ggml_tensor * src_w  = dst->src[4]; // conv1d.weight         {K, n_embd}, K = D+1
+    const ggml_tensor * src_stw = dst->src[5]; // conv_state write view 1D contiguous
+
+    const int ith = params->ith;
+    const int nth = params->nth;
+
+    const int64_t K  = src_w->ne[0];   // conv kernel taps
+    const int64_t D  = src_st->ne[0];  // state rows
+    const int64_t n_embd = src_b->ne[0];
+    const int64_t n_t    = src_b->ne[1];
+    const int64_t n_s    = src_b->ne[2];
+
+    GGML_ASSERT( dst->ne[0] == n_embd);
+    GGML_ASSERT( dst->ne[1] == n_t);
+    GGML_ASSERT( dst->ne[2] == n_s);
+    GGML_ASSERT(src_b->nb[0] == sizeof(float));
+    GGML_ASSERT(src_x->nb[0] == sizeof(float));
+    GGML_ASSERT(src_c->nb[0] == sizeof(float));
+    GGML_ASSERT(src_st->nb[0] == sizeof(float));
+    GGML_ASSERT(src_w->nb[0]  == sizeof(float));
+    GGML_ASSERT(src_stw->nb[0] == sizeof(float));
+    GGML_ASSERT(src_st->ne[0] == D);
+    GGML_ASSERT(src_st->ne[1] == n_embd);
+    GGML_ASSERT(src_st->ne[2] == n_s);
+    GGML_ASSERT(K == D + 1);
+
+    // channels per thread
+    const int64_t dr = (n_embd + nth - 1)/nth;
+
+    // channel range for this thread
+    const int64_t ir0 = dr*ith;
+    const int64_t ir1 = MIN(ir0 + dr, n_embd);
+
+    for (int64_t i3 = 0; i3 < n_s; ++i3) {
+        for (int64_t i1 = ir0; i1 < ir1; ++i1) {
+            // conv input window: v = [state ; u], u_t = b*x
+            float * v = (float *) alloca((D + n_t) * sizeof(float));
+            for (int64_t i0 = 0; i0 < D; ++i0) {
+                // element (i0, i1, i3) at i0*nb[0] + i1*nb[1] + i3*nb[2] (channel-blocked)
+                v[i0] = *(const float *) ((const char *) src_st->data + i0*(src_st->nb[0]) + i1*(src_st->nb[1]) + i3*(src_st->nb[2]));
+            }
+            for (int64_t i2 = 0; i2 < n_t; ++i2) {
+                const float bt = *(const float *) ((const char *) src_b->data + i1*(src_b->nb[0]) + i2*(src_b->nb[1]) + i3*(src_b->nb[2]));
+                const float xt = *(const float *) ((const char *) src_x->data + i1*(src_x->nb[0]) + i2*(src_x->nb[1]) + i3*(src_x->nb[2]));
+                v[D + i2] = bt*xt;
+            }
+
+            // causal conv
+            for (int64_t i2 = 0; i2 < n_t; ++i2) {
+                float sumf = 0.0f;
+                for (int64_t i0 = 0; i0 < K; ++i0) {
+                    sumf += v[i2 + i0] * *(const float *) ((const char *) src_w->data + i0*(src_w->nb[1]) + i1*(src_w->nb[0]));
+                }
+                const float ct = *(const float *) ((const char *) src_c->data + i1*(src_c->nb[0]) + i2*(src_c->nb[1]) + i3*(src_c->nb[2]));
+                *(float *) ((char *) dst->data + i1*(dst->nb[0]) + i2*(dst->nb[1]) + i3*(dst->nb[2])) = ct*sumf;
+            }
+
+            // new state: v[n_t .. n_t+D-1], channel-blocked layout:
+            // element (j, ch) of seq s at (s*n_embd + ch)*D + j
+            for (int64_t i0 = 0; i0 < D; ++i0) {
+                ((float *) src_stw->data)[(i3*n_embd + i1)*D + i0] = v[n_t + i0];
+            }
+        }
+    }
+}
+
+void ggml_compute_forward_lfm2_shortconv(
+        const ggml_compute_params * params,
+        ggml_tensor * dst) {
+    switch (dst->src[0]->type) {
+        case GGML_TYPE_F32:
+            {
+                ggml_compute_forward_lfm2_shortconv_f32(params, dst);
+            } break;
+        default:
+            {
+                GGML_ABORT("fatal error");
+            }
+    }
+}
+
 // ggml_compute_forward_ssm_scan
 
 static void ggml_compute_forward_ssm_scan_f32(

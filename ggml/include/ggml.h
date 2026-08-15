@@ -561,6 +561,7 @@ extern "C" {
         GGML_OP_FLASH_ATTN_BACK,
         GGML_OP_SSM_CONV,
         GGML_OP_SSM_SCAN,
+        GGML_OP_LFM2_SHORTCONV,
         GGML_OP_WIN_PART,
         GGML_OP_WIN_UNPART,
         GGML_OP_GET_REL_POS,
@@ -2450,6 +2451,18 @@ extern "C" {
             struct ggml_context * ctx,
             struct ggml_tensor  * sx,
             struct ggml_tensor  * c);
+
+    // LFM2 fused shortconv block:
+    //   dst = c * conv1d([conv_state ; b * x], conv_kernel); writes new state to conv_state_dst
+    //   conv_kernel has K taps where K = conv_state rows + 1
+    GGML_API struct ggml_tensor * ggml_lfm2_shortconv(
+            struct ggml_context * ctx,
+            struct ggml_tensor  * b,
+            struct ggml_tensor  * x,
+            struct ggml_tensor  * c,
+            struct ggml_tensor  * conv_state,
+            struct ggml_tensor  * conv_kernel,
+            struct ggml_tensor  * conv_state_dst);
 
     GGML_API struct ggml_tensor * ggml_ssm_scan(
             struct ggml_context * ctx,
