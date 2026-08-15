@@ -193,39 +193,48 @@ llama_model_lfm2::graph<iswa>::graph(const llama_model & model, const llm_graph_
         auto *     x          = ggml_view_3d(ctx0, bcx, chunk_size, bcx->ne[1], bcx->ne[2], bcx->nb[1], bcx->nb[2],
                                              2 * chunk_size * ggml_element_size(bcx));
 
-        auto * bx = ggml_transpose(ctx0, ggml_mul(ctx0, b, x));
-
         // read conv state
         auto * conv_state = mctx_cur->get_r_l(il);
         auto * conv_rs    = build_rs(inp_recr, conv_state, hparams.n_embd_r(), n_seqs);
         auto * conv       = ggml_reshape_3d(ctx0, conv_rs, d_conv, hparams.n_embd, n_seqs);
 
-        // causal prepends the state, non-causal pads symmetrically for a centered window
+        ggml_tensor * y = nullptr;
         if (hparams.causal_attn) {
-            bx = ggml_concat(ctx0, conv, bx, 0);
+            // Fused path: one op replaces mul(b,x) + concat + ssm_conv + state cpy +
+            // mul(c,o), i.e. 4 kernels become 1. The kernel computes
+            //   y = c * conv1d([conv_state ; b*x], conv_kernel)
+            // and writes the new state (last d_conv rows of the window) in-place,
+            // which avoids materializing the {d_conv+n_t, n_embd, n_seqs} window.
+            auto * conv_kernel = model.layers[il].shortconv.conv;
+            auto * dst_state   = ggml_view_1d(ctx0, conv_state, d_conv * hparams.n_embd * n_seqs,
+                                              kv_head * d_conv * hparams.n_embd * ggml_element_size(conv_state));
+            y = ggml_lfm2_shortconv(ctx0, b, x, c, conv, conv_kernel, dst_state);
+            cb(y, "model.layers.{}.conv.conv", il);
         } else {
+            // causal prepends the state, non-causal pads symmetrically for a centered window
+            auto * bx = ggml_transpose(ctx0, ggml_mul(ctx0, b, x));
             const int64_t pad = (hparams.n_shortconv_l_cache - 1) / 2;
             auto * left = ggml_cont(ctx0,
                 ggml_view_3d(ctx0, conv, pad, hparams.n_embd, n_seqs, conv->nb[1], conv->nb[2], (d_conv - pad) * conv->nb[0]));
             bx = ggml_pad_ext(ctx0, ggml_concat(ctx0, left, bx, 0), 0, pad, 0, 0, 0, 0, 0, 0);
+            GGML_ASSERT(bx->ne[0] > conv->ne[0]);
+
+            // last d_conv columns is a new conv state
+            auto * new_conv = ggml_view_3d(ctx0, bx, conv->ne[0], bx->ne[1], bx->ne[2], bx->nb[1], bx->nb[2],
+                                           (bx->ne[0] - conv->ne[0]) * ggml_element_size(bx));
+            GGML_ASSERT(ggml_are_same_shape(conv, new_conv));
+
+            // write new conv conv state
+            ggml_build_forward_expand(gf, ggml_cpy(ctx0, new_conv,
+                                                   ggml_view_1d(ctx0, conv_state, ggml_nelements(new_conv),
+                                                                kv_head * d_conv * n_embd * ggml_element_size(new_conv))));
+
+            auto * conv_kernel = model.layers[il].shortconv.conv;
+            auto * conv_out    = ggml_ssm_conv(ctx0, bx, conv_kernel);
+            cb(conv_out, "model.layers.{}.conv.conv", il);
+
+            y = ggml_mul(ctx0, c, conv_out);
         }
-        GGML_ASSERT(bx->ne[0] > conv->ne[0]);
-
-        // last d_conv columns is a new conv state
-        auto * new_conv = ggml_view_3d(ctx0, bx, conv->ne[0], bx->ne[1], bx->ne[2], bx->nb[1], bx->nb[2],
-                                       (bx->ne[0] - conv->ne[0]) * ggml_element_size(bx));
-        GGML_ASSERT(ggml_are_same_shape(conv, new_conv));
-
-        // write new conv conv state
-        ggml_build_forward_expand(gf, ggml_cpy(ctx0, new_conv,
-                                               ggml_view_1d(ctx0, conv_state, ggml_nelements(new_conv),
-                                                            kv_head * d_conv * n_embd * ggml_element_size(new_conv))));
-
-        auto * conv_kernel = model.layers[il].shortconv.conv;
-        auto * conv_out    = ggml_ssm_conv(ctx0, bx, conv_kernel);
-        cb(conv_out, "model.layers.{}.conv.conv", il);
-
-        auto * y = ggml_mul(ctx0, c, conv_out);
         // same flattening trick as in_proj: keep {n_embd, n_seq_tokens*n_seqs} for the GEMM
         y = ggml_reshape_2d(ctx0, y, y->ne[0], n_seq_tokens * n_seqs);
         y = build_lora_mm(model.layers[il].shortconv.out_proj, y);
