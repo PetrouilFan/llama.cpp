@@ -27,7 +27,8 @@ Generic wins stack across all quants, specific per-dtype last.
 |----|------|------|---------------|--------|
 | G1 | ggml-cuda/gated_delta_net.cu | DeltaNet 4->8 warps (*4->*8 launch_bounds) | 75% layers, 7.7% tg | TESTED_NEUTRAL 1377 vs 1390 -0.9% Q4_0, 1161 vs 1166 -0.4% K_M, tg +2.8% K_M flat | revert 4 |
 | G2a | vecdotq.cuh | VDR_Q4_K_MMVQ 8->16 | gemma plateau 16 | TESTED_NEUTRAL 1167 vs 1166 flat, Q4_0 1385 vs 1390 flat | revert 8 |
-| G2b | mmq-config | Q4_K J 64->128 (512 thr) HBM tile | HBM caches more x | TESTED_NEUTRAL/REGRESS 1112 vs 1166 -4.6% p512, 1198 vs 1170 +2.4% p1024, std 178 | revert 64 |
+| G2b | mmq-config | Q4_K J 64->128 (512 thr) HBM tile K256 | HBM caches more x | TESTED_NEUTRAL/REGRESS 1112 vs 1166 -4.6% p512, 1198 vs 1170 +2.4% p1024, std 178 | revert 64 |
+| G2c | mmq-config | Q4_K J 64->128 with K512 HBM | HBM large K+J together | DONE_WIN 1671 p512 flat, 1787 p1024 +4.8%, 1772 p2048 +4.9%, 1666 p8192 +4.8% vs K512-64 (1705/1689/1590) | keep J128 (577b0f32e) |
 | G3a | mmq-config | Q4_K occupancy 2->1 512thr | vgpr bound HBM | TESTED_NEUTRAL 1162 vs 1171 -0.7% p512 1377 vs 1390 -0.9% Q4_0 | revert 2 |
 | G3b | common / hip | compiler -munsafe-fp-atomics | one flag rebuild | TESTED_NEUTRAL 1676 flat pp512 with flag vs without | keep off |
 | G3c | gated_delta_net.cu | DeltaNet num_warps 2 test | vgpr vs occ | TESTED_REGRESS 1574 vs 1676 -6% p512 | revert 4 (8 earlier flat, 4 optimal) |
