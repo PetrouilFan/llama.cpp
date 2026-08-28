@@ -2057,7 +2057,89 @@ static void ggml_cuda_mul_mat_id(ggml_backend_cuda_context & ctx, ggml_tensor * 
         nb1, nb2, nb3, stream);
 }
 
+// GGML_CUDA_OP_TIMING: per-op GPU time breakdown, no external profiler needed.
+// Set GGML_CUDA_OP_TIMING=1 in the environment to enable. Prints a table at exit.
+// Events are created/recorded per op but synced+destroyed only at exit, so the
+// stream is never touched during CUDA graph capture (which would abort).
+struct ggml_cuda_op_timing_entry {
+    double     ms    = 0;
+    long       calls = 0;
+    std::string name;
+};
+
+struct ggml_cuda_op_timing_data {
+    std::map<int, ggml_cuda_op_timing_entry> data;
+    bool enabled = false;
+    ggml_cuda_op_timing_data() {
+        enabled = getenv("GGML_CUDA_OP_TIMING") != nullptr;
+    }
+};
+
+static ggml_cuda_op_timing_data g_op_timing;
+
+// deferred (start, stop, op) pairs, resolved at exit
+static std::vector<std::tuple<hipEvent_t, hipEvent_t, int>> g_op_timing_events;
+
+static void ggml_cuda_op_timing_print() {
+    if (!g_op_timing.enabled) {
+        return;
+    }
+    for (auto & p : g_op_timing_events) {
+        hipEvent_t s = std::get<0>(p);
+        hipEvent_t e = std::get<1>(p);
+        int op       = std::get<2>(p);
+        hipEventSynchronize(e);
+        float ms = 0;
+        hipEventElapsedTime(&ms, s, e);
+        auto & ent = g_op_timing.data[op];
+        ent.ms += ms;
+        ent.calls += 1;
+        if (ent.name.empty()) ent.name = ggml_op_name((ggml_op)op);
+        hipEventDestroy(s);
+        hipEventDestroy(e);
+    }
+    g_op_timing_events.clear();
+
+    if (g_op_timing.data.empty()) {
+        return;
+    }
+    fprintf(stderr, "\n=== GGML CUDA OP TIMING (env GGML_CUDA_OP_TIMING=1) ===\n");
+    fprintf(stderr, "%-22s %8s %12s %10s %9s\n", "op", "calls", "total_ms", "avg_ms", "%phase");
+    std::vector<std::pair<int, ggml_cuda_op_timing_entry>> rows(g_op_timing.data.begin(), g_op_timing.data.end());
+    std::sort(rows.begin(), rows.end(), [](const auto & a, const auto & b) { return a.second.ms > b.second.ms; });
+    double total = 0;
+    for (const auto & r : rows) total += r.second.ms;
+    for (const auto & r : rows) {
+        const auto & e = r.second;
+        fprintf(stderr, "%-22s %8ld %12.2f %10.3f %8.2f%%\n",
+                e.name.c_str(), e.calls, e.ms, e.ms / e.calls, total > 0 ? 100.0 * e.ms / total : 0.0);
+    }
+    fprintf(stderr, "%-22s %8s %12.2f\n", "TOTAL", "", total);
+}
+
+static int g_op_timing_atexit_reg = (atexit(ggml_cuda_op_timing_print), 0);
+
+struct ggml_cuda_op_timer_guard {
+    hipStream_t  stream;
+    hipEvent_t   start, stop;
+    ggml_op      op;
+    bool         active;
+    ggml_cuda_op_timer_guard(hipStream_t s, ggml_op o) : stream(s), op(o), active(g_op_timing.enabled) {
+        if (!active) return;
+        hipEventCreate(&start);
+        hipEventCreate(&stop);
+        hipEventRecord(start, stream);
+    }
+    ~ggml_cuda_op_timer_guard() {
+        if (!active) return;
+        hipEventRecord(stop, stream);
+        // defer sync/destroy to exit (CUDA graph capture safe)
+        g_op_timing_events.push_back({start, stop, (int)op});
+    }
+};
+
 static bool ggml_cuda_compute_forward(ggml_backend_cuda_context & ctx, struct ggml_tensor * dst) {
+    ggml_cuda_op_timer_guard op_guard(ctx.stream(), dst->op);
     switch (dst->op) {
         case GGML_OP_ARGMAX:
             ggml_cuda_argmax(ctx, dst);

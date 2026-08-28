@@ -15,7 +15,7 @@ Columns: ID | file | patch | Q4_0 delta | K_M delta | tg delta | status | note
 | D06 | mmq-config | Q5/6 I128->64 J64 | - | +4% 842->875 pp128, 1139->1174 p1024 | flat | DONE | final 878 p128 1170 p512 1170 p1024 |
 | Q01 | mmq-config | Q4_0 512 (test) | 1369 vs 1383 -1% | 1143 vs 1170 -2% (noise) | flat | TESTED_NEUTRAL | revert 256, not merged |
 
-Quarantined: SK01 Stream-K Q8 true (mmq-config 27 CASE false->true) p512 +1% Q4_0 flat +2-5% K_M, tg -7.6% on Q4_0 => branch `gfx906-streamk-test 006513ab4` only.
+SK01 Stream-K Q8 true (mmq-config 27 CASE) - K256 tower: p512 +1% Q4_0 flat +2-5% K_M, tg -7.6% Q4_0 => quarantined then. With K512 tower (5150bb02b): pp512 1756->1776 +1.2% pp1024 +6% pp8192 1666->1686 +1.2% Q4_0 2166->2197 +1.4% tg +1.5-2.8%, NO Q4_0 regress, NO freeze Ryzen. COMMITTED 5150bb02b as generic tower step.
 
 Rejected earlier (DDR3 polluted but re-check with HBM if needed): K 512, I-tile 64 generic, shared 16K - keep queued w4.
 
