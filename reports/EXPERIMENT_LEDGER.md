@@ -25,15 +25,17 @@ Generic wins stack across all quants, specific per-dtype last.
 
 | ID | file | idea | HBM rationale | status |
 |----|------|------|---------------|--------|
-| G1 | ggml-cuda/gated_delta_net.cu | DeltaNet gfx906 dispatch (num_warps/tile) | 75% of Qwen3.5 layers, 7.7% tg, zero VEGA20 path today | QUEUED_HIGH |
-| G2a | vecdotq.cuh | VDR 16 (from 8) | gemma plateau 16, HBM may lift, vec generic | QUEUED |
-| G2b | mmq-config / fattn-tile.cuh | HBM tile J256 + KV 32->64 | HBM caches more x/KV, retry DDR3 reject | IDEA |
-| G3 | common / hip | compiler -munsafe-fp-atomics, occupancy, wave64 hint | one flag rebuild benefits every model | IDEA |
-| W1b | mmq-config | Q2_K 256->512 | rare but free y | QUEUED_LOW |
-| W1c | mmq-config | IQ1_S/IQ2_XS/IQ2_S/IQ3/IQ4_NL 512 thr | future IQ models, same infra | QUEUED_LOW |
-| W1d | mmq-config | MXFP4 512 thr (mirrors mxxm-t) | new q type | QUEUED_LOW |
-| W1e | mmq-config | Q6_K 256->512 thr test | 22% of K_M | QUEUED_LOW |
+| G1 | ggml-cuda/gated_delta_net.cu | DeltaNet 4->8 warps (*4->*8 launch_bounds) | 75% layers, 7.7% tg | TESTED_NEUTRAL 1377 vs 1390 -0.9% Q4_0, 1161 vs 1166 -0.4% K_M, tg +2.8% K_M flat | revert 4 |
+| G2a | vecdotq.cuh | VDR_Q4_K_MMVQ 8->16 | gemma plateau 16 | TESTED_NEUTRAL 1167 vs 1166 flat, Q4_0 1385 vs 1390 flat | revert 8 |
+| G2b | mmq-config | Q4_K J 64->128 (512 thr) HBM tile | HBM caches more x | TESTED_NEUTRAL/REGRESS 1112 vs 1166 -4.6% p512, 1198 vs 1170 +2.4% p1024, std 178 | revert 64 |
+| G3a | mmq-config | Q4_K occupancy 2->1 512thr | vgpr bound HBM | TESTED_NEUTRAL 1162 vs 1171 -0.7% p512 1377 vs 1390 -0.9% Q4_0 | revert 2 |
+| G3b | common / hip | compiler -munsafe-fp-atomics, occupancy, wave64 hint | one flag rebuild benefits every model | NEXT |
+| S1 | mmq-config | Q6_K 256->512 thr | 22% K_M | TESTED_NEUTRAL/REGRESS 1154 vs 1171 -1.4% p512 1116 vs 1170 -4.6% p1024 | revert 256 |
+| S2 | mmq-config | MXFP4 256->512 | new q type | TESTED_NEUTRAL 1161 vs 1171 -0.8% p512 flat tg 91 vs 85 noise | revert 256 |
+| S3 | mmq-config | Q2_K 256->512 | rare but free y | TESTED_NEUTRAL 1164 vs 1171 -0.6% flat | revert 256 |
+| S4 | mmq-config | IQ1_S/IQ2_XS/IQ2_S/IQ3/IQ4_NL 512 thr | future IQ models, same infra | SKIPPED_LOW_ROI - Q3_K/Q2_K neutral predicts neutral |
 | W1a | mmq-config | Q3_K 256->512 thr | 9.5% of K_M | TESTED_NEUTRAL 1165 vs 1166 flat |
+| W4 | mmq.cuh | K_vram 256->512 HBM larger K block | HBM 1TB/s keeps more K in LDS, halves stores | DONE_HBM_WIN 1676 vs 1171 +43% p512 K_M 1705 vs 1170 +45% p1024 1222 vs 878 +39% p128 1590 vs 1089 +46% p8192 Q4_0 2149 vs 1390 +54% |
 | W2b | mmq-config | sram_layout Q8_1 vs Q8_0 for K_M | test HBM cache | IDEA |
 | W3b | fattn-tile.cuh | KV tile 32->64 with HBM | HBM reuse | IDEA |
 
