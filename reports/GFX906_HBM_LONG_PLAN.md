@@ -1,6 +1,6 @@
 # gfx906 (Vega20 / Radeon VII) HBM long plan - Ryzen 7 3700X DDR4 platform
 
-Branch: `gfx906-ryzen-v2` `d5b9855c2` (6-rank stable)
+Branch: `gfx906-ryzen-v2` `35b53a5f0` (+ `c010f2fb3` revert scalar, `HBM K512 1ccb8bbbd` `J128 577b0f32e` `+43%` `pp512 1773 vs1666 +6.5% KV tile`)
 HW: Ryzen 7 3700X 8C16T 32GB DDR4 31Gi, Vega20 gfx906 60CU 16GB HBM2 1TB/s, GP102 GTX1080Ti idle
 ROCm 7.2 hipcc 7.2.53211 clang 22.1.8, `GGML_HIP + VEGA20 dispatch` via `mmq-config-gfx906.cuh`
 Date: 2026-08-28
@@ -30,6 +30,10 @@ Personal branch => we can be aggressive, break simplicity, target any model (Q4_
 | 6.5 | FA tile 81 configs | fattn-tile.cuh | neutral on this model | 75% DeltaNet masks FA |
 | 6.6 | Q4_K 512 | mmq-config | +9% pp128 | verified on K_M |
 | 6.7 | Q5/6 I128->64 | mmq-config | +4% pp128 +3% pp1024 | HBM can keep 64 |
+| 7.1 | K_vram 256->512 HBM | mmq.cuh + mmq-config J72-128 | +43% p512 1676 vs1170 K_M, 1222 vs878 pp128 | LDS 32KB->64KB halves K stores |
+| 7.2 | J128 with K512 | mmq-config | +4.8% p1024 1787 vs1705 | large K keeps occupancy |
+| 7.3 | KV 32->64 HBM reuse | fattn-tile.cuh:363 | +6.5% K_M 1773 vs1666, +7.6% Q4_0 2183 vs2027 | 12KB LDS fits 64KB occ2 |
+| 7.4 | sdot V_DOT2 Vega scalar fix (reverted) | common.cuh 706/753 | -90% 178 vs1771 REVERTED | fast sdot kept |
 
 Quarantined: Stream-K Q8 true => +2-5% pp on K_M but -7.6% tg on Q4_0 => quant-dependent, not merged.
 Rejected neutral this host: Q4_0 512 (1023 vs 1023 flat), MMVQ nwarps 4 (70 vs 86 regress), rows_per_block 2 (flat).

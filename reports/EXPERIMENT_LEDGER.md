@@ -39,7 +39,10 @@ Generic wins stack across all quants, specific per-dtype last.
 | W1a | mmq-config | Q3_K 256->512 thr | 9.5% of K_M | TESTED_NEUTRAL 1165 vs 1166 flat |
 | W4 | mmq.cuh | K_vram 256->512 HBM larger K block | HBM 1TB/s keeps more K in LDS, halves stores | DONE_HBM_WIN 1676 vs 1171 +43% p512 K_M 1705 vs 1170 +45% p1024 1222 vs 878 +39% p128 1590 vs 1089 +46% p8192 Q4_0 2149 vs 1390 +54% |
 | W2b | mmq-config | sram_layout Q8_1 vs Q8_0 for K_M | test HBM cache | IDEA |
-| W3b | fattn-tile.cuh | KV tile 32->64 with HBM | HBM reuse | IDEA |
+| W3b | fattn-tile.cuh | KV tile 32->64 with HBM | HBM reuse | DONE_HBM_WIN 1773 p512 (+6.5% vs 1666) via 35b53a5f0 |
+| W3c | fattn-tile.cuh | KV tile 64->128 (128,128,64 nbatch_K) | extend W3b | REJECT_INFEASIBLE LDS 64KB cap: nbatch_K=128 DKQ128 needs 64KB KV alone, no room Q_tmp/KQ |
+| P1  | getrows.cu | k_get_rows_float_vec wide 128B gather | IDEA 7.2% tg | ALREADY_DONE src uses int4 (128b) lines 123-124; random row idx not coalescable across blocks |
+| P2  | mmq-config | Q5_K/Q6_K J 64->128 (I128) | 44% K_M | REJECT_REGRESS 1765->1422 -19% p512 K_M (slow J128 picked for Q5/Q6); keep J64 |
 
 ## IDEA backlog (think multiple perspectives)
 
@@ -48,9 +51,12 @@ Generic wins stack across all quants, specific per-dtype last.
 - wave32 hint for Vega20 dispatch (some kernels branch on 32)
 - 8K ctx: pp8192 should >= pp512 if tiling correct (cur 1224 <1383 regress)
 
-## Bench refs (this host, 6-rank d5b9855c2)
+## Bench refs (this host, 6-rank d5b9855c2 + HBM 35b53a5f0)
 
 - Q4_0 512thr test neutral: Q4_0 p128 1023 p512 1369 p1024 1373 p2048 1362 p8192 1261 tg32 90.0 (build d5b9855c2 after revert clean should be 1383/1261 tg96 - noise)
 - K_M 6-rank: 878 p128 1170 p512 1170 p1024 1140 p2048 1089 p8192 86 tg (vs vanilla 567/1024/1071/1107/1074)
 - StreamK K_M: 911 p128 1192 p512 1195 p1024 1176 p2048 tg90
+- HBM K512 1ccb8bbbd: 1222 pp128 (+39% vs 878) 1676 p512 +43% 1705 p1024 +45% 1590 p8192 +46% Q4_0 2149 +54% (fast sdot retained, Vega scalar reverted c010f2fb3 due to 178 regress)
+- HBM J128 577b0f32e: +4.8% p1024 1787 p2048 1772 1666 p8192 on top of K512
+- HBM KV 35b53a5f0: 1773 p512 (+6.5% vs 1666) Q4_0 2183 p512 (+7.6% vs 2027) tg neutral (reverted mmvq VEGA20 70 vs86)
 - Fail signal to watch: PCIe retrain, tg drop >10%, vgpr spill
