@@ -180,6 +180,10 @@
 #define GCN5
 #endif // defined(__gfx900__) || defined(__gfx906__)
 
+#if defined(__gfx906__)
+#define VEGA20
+#endif // defined(__gfx906__)
+
 #if defined(__gfx803__)
 #define GCN4
 #endif // defined(__gfx803__)
