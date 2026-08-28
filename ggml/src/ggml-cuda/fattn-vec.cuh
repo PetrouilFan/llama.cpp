@@ -2,12 +2,21 @@
 #include "fattn-common.cuh"
 
 static int ggml_cuda_fattn_vec_get_nthreads_host(const int cc) {
+#ifdef GGML_USE_HIP
+    if (cc == GGML_CUDA_CC_VEGA20) { // gfx906: 256 threads = 4 wave64 warps
+        return 256;
+    }
+#endif // GGML_USE_HIP
     return 128;
     GGML_UNUSED(cc);
 }
 
 static constexpr __device__ int ggml_cuda_fattn_vec_get_nthreads_device() {
+#ifdef VEGA20
+    return 256; // gfx906: 256 threads = 4 wave64 warps
+#else
     return 128;
+#endif
 }
 
 // Currently llvm with the amdgcn target does not support unrolling loops
