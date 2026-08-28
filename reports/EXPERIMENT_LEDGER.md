@@ -29,7 +29,9 @@ Generic wins stack across all quants, specific per-dtype last.
 | G2a | vecdotq.cuh | VDR_Q4_K_MMVQ 8->16 | gemma plateau 16 | TESTED_NEUTRAL 1167 vs 1166 flat, Q4_0 1385 vs 1390 flat | revert 8 |
 | G2b | mmq-config | Q4_K J 64->128 (512 thr) HBM tile | HBM caches more x | TESTED_NEUTRAL/REGRESS 1112 vs 1166 -4.6% p512, 1198 vs 1170 +2.4% p1024, std 178 | revert 64 |
 | G3a | mmq-config | Q4_K occupancy 2->1 512thr | vgpr bound HBM | TESTED_NEUTRAL 1162 vs 1171 -0.7% p512 1377 vs 1390 -0.9% Q4_0 | revert 2 |
-| G3b | common / hip | compiler -munsafe-fp-atomics, occupancy, wave64 hint | one flag rebuild benefits every model | NEXT |
+| G3b | common / hip | compiler -munsafe-fp-atomics | one flag rebuild | TESTED_NEUTRAL 1676 flat pp512 with flag vs without | keep off |
+| G3c | gated_delta_net.cu | DeltaNet num_warps 2 test | vgpr vs occ | TESTED_REGRESS 1574 vs 1676 -6% p512 | revert 4 (8 earlier flat, 4 optimal) |
+| G3d | fattn-tile.cuh | FA tile 128,128,64 nbatch 64->128 32->64 | HBM 1TB/s KV reuse | TESTED_NEUTRAL 1703 vs 1705 flat p1024 1587 vs 1590 flat | revert 64/32 |
 | S1 | mmq-config | Q6_K 256->512 thr | 22% K_M | TESTED_NEUTRAL/REGRESS 1154 vs 1171 -1.4% p512 1116 vs 1170 -4.6% p1024 | revert 256 |
 | S2 | mmq-config | MXFP4 256->512 | new q type | TESTED_NEUTRAL 1161 vs 1171 -0.8% p512 flat tg 91 vs 85 noise | revert 256 |
 | S3 | mmq-config | Q2_K 256->512 | rare but free y | TESTED_NEUTRAL 1164 vs 1171 -0.6% flat | revert 256 |
