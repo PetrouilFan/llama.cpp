@@ -40,34 +40,30 @@ See `reports/EXPERIMENT_LEDGER.md` - every idea -> status `DONE / TESTED_NEUTRAL
 
 We run unattended: each wave = independent files, can repro + bench both `Q4_0.gguf` and `Q4_K_M.gguf` at `p 128/512/1024/8192 n32`.
 
-## 3. Long plan - 4 waves (parallel where no same-file overlap)
+## 3. Long plan - generic before specific (reordered 2026-08-28, HBM rich)
 
-Wave 1 - MMQ quant coverage (HBM lets us waste y-tiles)
-- w1a: Q3_K 512 thr (mirrors Q4_K, 9% of K_M)
-- w1b: Q2_K 512 thr (rare but free)
-- w1c: IQ1_S/IQ2/IQ3/IQ4 512 thr sweep (future IQ models)
-- w1d: MXFP4 512 thr (new arch,  mxxm-t already does Q8+MXFP4)
-- w1e: Q6_K 256->512 thr test (sibling of Q5_K, currently 256)
-Each is same-file `mmq-config-gfx906.cuh` so serialize per quant type, but quick 1-build per guess.
+Generic wins stack across all quants, specific per-dtype last. Parallel where no same-file overlap.
 
-Wave 2 - Vec / dequant (VGPR vs HBM tradeoff)
-- w2a: VDR 16 (was 8->16 plateau on gemma, test HBM)
-- w2b: LDS layout switch Q4_K vs Q4_0 (different sram_layout)
-- w2c: fused dequant + dot (reduce trips, costs VGPR)
-- w2d: larger y-tile 128->256 with HBM (revisit rejected K=512 with HBM)
+Wave G1 - Generic attention (biggest tg share, 75% DeltaNet)
+- g1a: DeltaNet `gated_delta_net 7.7% tg` - add VEGA20 dispatch `num_warps 4->8/2`, `S_v` tile, `__launch_bounds__ occ 2->1` (file `gated_delta_net.cu`, not mmq-config)
+- g1b: FA QK/KV HBM tile - J already 128 for MMQ, try KV 32->64 with HBM (`fattn-tile.cuh`)
+
+Wave G2 - Generic vec / dequant (HBM vs VGPR)
+- g2a: VDR 16 (was 8->16 plateau on gemma, test HBM) (`vecdotq.cuh`)
+- g2b: larger y-tile 128->256 with HBM, LDS layout switch (revisit DDR3 rejects)
+- g2c: fused dequant+dot
 Profiling with rocprof: VGPR/SGPR/lane.
 
-Wave 3 - Attention heavy tails (the 75% you actually pay)
-- w3a: DeltaNet `gated_delta_net 7.7% tg` - port gfx906 config (currently RDNA fallback), test 8 thr/row tile as for FA
-- w3b: FA QK/KV HBM tile - J already 128 for MMQ, try KV tile 32->64 with HBM
-- w3c: rope/norm fused with HBM (small but x many layers)
-These touch `ggml-cuda/delta*`, `fattn-tile.cuh`, not `mmq-config`.
+Wave G3 - Generic system / compiler
+- g3a: larger MMQ J 256 (HBM caches more x) (`mmq-config`)
+- g3b: wave32 hint for Vega, `__launch_bounds__` tuning
+- g3c: compiler `-munsafe-fp-atomics --amdgpu-target=gfx906` + occupancy 64
+- g3d: 8K ctx `pp8192 >= pp512` prove reuse, 6K gen stability (no PCIe retrain)
 
-Wave 4 - System / compiler
-- w4a: larger MMQ J 256 (HBM can cache more x)
-- w4b: wave32 emulation hint for Vega (some kernels assume 32)
-- w4c: compiler `-munsafe-fp-atomics --amdgpu-target=gfx906` + occupancy 64
-- w4d: 8K long-context stability suite (8192 pp + 6K gen) on each wave, no more PCIe retrain
+Wave S - Specific per-quant MMQ (after generics, HBM lets waste y-tiles)
+- s1: Q3_K 512 thr (9% K_M) - TESTED_NEUTRAL 1165 vs 1166 flat
+- s2: Q2_K 512 thr, IQ sweeps, MXFP4 512 thr, Q6_K 256->512 thr test
+Each same-file `mmq-config-gfx906.cuh` so serialize per quant, quick 1-build per guess.
 
 ## 4. Success criteria (any model)
 

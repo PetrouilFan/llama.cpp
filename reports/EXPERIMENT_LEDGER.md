@@ -19,23 +19,23 @@ Quarantined: SK01 Stream-K Q8 true (mmq-config 27 CASE false->true) p512 +1% Q4_
 
 Rejected earlier (DDR3 polluted but re-check with HBM if needed): K 512, I-tile 64 generic, shared 16K - keep queued w4.
 
-## QUEUED (next, in priority order)
+## QUEUED - generic before specific (reordered 2026-08-28)
 
-W1 = MMQ coverage, W2 = vec/VGPR, W3 = attention, W4 = system
+Generic wins stack across all quants, specific per-dtype last.
 
 | ID | file | idea | HBM rationale | status |
 |----|------|------|---------------|--------|
-| W1a | mmq-config | Q3_K 256->512 thr (all J 8..64 both SK) | 9.5% of K_M, same super-block win as Q4_K, HBM lets 512 | TESTED_NEUTRAL 1165 vs 1166 flat |
-| W1b | mmq-config | Q2_K 256->512 | rare but free y | QUEUED |
-| W1c | mmq-config | IQ1_S/IQ2_XS/IQ2_S/IQ3/IQ4_NL 512 thr | future IQ models, same infra | QUEUED |
-| W1d | mmq-config | MXFP4 512 thr (mirrors mxxm-t) | new q type, 512 thr already proven | QUEUED |
-| W1e | mmq-config | Q6_K 256->512 thr test | sibling of Q5_K, 22% of K_M | QUEUED |
-| W2a | vecdotq.cuh | VDR 16 (from 8) | gemma plateau 16, HBM may lift | QUEUED |
+| G1 | ggml-cuda/gated_delta_net.cu | DeltaNet gfx906 dispatch (num_warps/tile) | 75% of Qwen3.5 layers, 7.7% tg, zero VEGA20 path today | QUEUED_HIGH |
+| G2a | vecdotq.cuh | VDR 16 (from 8) | gemma plateau 16, HBM may lift, vec generic | QUEUED |
+| G2b | mmq-config / fattn-tile.cuh | HBM tile J256 + KV 32->64 | HBM caches more x/KV, retry DDR3 reject | IDEA |
+| G3 | common / hip | compiler -munsafe-fp-atomics, occupancy, wave64 hint | one flag rebuild benefits every model | IDEA |
+| W1b | mmq-config | Q2_K 256->512 | rare but free y | QUEUED_LOW |
+| W1c | mmq-config | IQ1_S/IQ2_XS/IQ2_S/IQ3/IQ4_NL 512 thr | future IQ models, same infra | QUEUED_LOW |
+| W1d | mmq-config | MXFP4 512 thr (mirrors mxxm-t) | new q type | QUEUED_LOW |
+| W1e | mmq-config | Q6_K 256->512 thr test | 22% of K_M | QUEUED_LOW |
+| W1a | mmq-config | Q3_K 256->512 thr | 9.5% of K_M | TESTED_NEUTRAL 1165 vs 1166 flat |
 | W2b | mmq-config | sram_layout Q8_1 vs Q8_0 for K_M | test HBM cache | IDEA |
-| W3a | ggml-cuda/gated_delta | DeltaNet gfx906 tile | 75% of Qwen3.5 layers, 7.7% tg | QUEUED_HIGH |
 | W3b | fattn-tile.cuh | KV tile 32->64 with HBM | HBM reuse | IDEA |
-| W4a | mmq-config | J 256 (x-tile) | HBM caches more x, retry old reject | IDEA |
-| W4b | common | compiler flags / occupancy 64 | VGPR trade | IDEA |
 
 ## IDEA backlog (think multiple perspectives)
 
