@@ -501,7 +501,13 @@ static __device__ __forceinline__ float vec_dot_q3_K_q8_1_impl_mmq(
     return d3*d8 * sumi;
 }
 
+// gfx906 (Vega20 / GCN5) benefits from a larger VDR for the mmvq dequant path.
+// Keep the upstream default of 2 for all other architectures.
+#if defined(VEGA20)
 #define VDR_Q4_K_Q8_1_MMVQ 8
+#else
+#define VDR_Q4_K_Q8_1_MMVQ 2
+#endif
 #define VDR_Q4_K_Q8_1_MMQ  8
 
 // contiguous v/x values

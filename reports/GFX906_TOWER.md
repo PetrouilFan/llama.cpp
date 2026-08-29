@@ -54,6 +54,21 @@ Takeaways:
 - **Prefill: +60-73% across every quant family** (plain Q4_0, mixed K_M, low-bit Q3_K/IQ4_XS, dense 8B). The `K512` + `Stream-K` + `512thr` memory-trip reductions hit the universal `MUL_MAT` path.
 - **tg gain scales with model size**: small 4B models are host/dispatch-bound in decode (GPU idle ~97%), so tg is ~flat; larger 8B is GPU-bound in decode, so tg gains +31%. This is structural, not quant-specific.
 
+## Out-of-box verification (overnight, all safe, all generic)
+
+After the kernel tower, every non-kernel lever was measured to confirm the ceiling:
+
+- **KV cache quant**: `f16` baseline kept. `q8_0` safe but `pp -2%`/`tg -3%` (dp4a dequant offsets BW save); only useful as **capacity** (halves KV `1GB->0.5GB` at `c8192`, `4B 13->26` slots). `q4_0` FA vec path **crashed the GPU** (SMU/PCIe drop) -> rejected. `IQ4_NL` not FA-whitelisted -> `-78% pp` + timeout -> rejected. Verdict: `f16` for latency, `q8_0` optional for 4B high-throughput.
+- **64k realistic**: `pp512->64k` drops `-46%` (O(n^2) FA compute, not KV BW); `q8_0` still `-2%` even at `pp65408`. KV quant does not fix large context.
+- **Compiler flags**: `-ffast-math`, `-fgpu-flush-denormals-to-zero`, `HIP_ENABLE_WARP_SYNC` -> all neutral (`<0.5%`).
+- **FA tile exhaustive**: 8 more `nbatch_K`/`nbatch_fa` candidates (40..512 heads, LDS<=29KB) -> all neutral (`+0.2-0.8%`). `128,128,64 32->64` (`+6.5%`) remains the only win.
+- **Decoder batch (`-ub` 1..512)**: flat `91 t/s` -> the 10ms gap is per-token CPU, not amortizable by ubatch.
+- **Speculative decoding** (`--speculate 5/8`, 0.8B draft): `-1.4%` -> no win because bottleneck is host launch latency, not GPU compute.
+- **Parallel slots** (`llama-batched-bench`, single-stream aggregate): `B8 S_TG 1.78-2.11x` at `94%` prefill util; 8B `2.31x`. This is the practical tg lever for throughput.
+- **MMVQ**: no `VEGA20`/`gfx906` arch path exists; decode matmul is fully generic. Added `nwarps 4` earlier -> regress, reverted. Exhausted.
+
+Conclusion: the gfx906 **kernel** space is fully explored. Single-stream decode tg is bounded by per-token host CPU (~10ms) which no GPU change can remove.
+
 ## Methodology (why these and not others)
 
 An op-timing harness (`GGML_CUDA_OP_TIMING`, see `ggml-cuda.cu`) measured per-op GPU time:
